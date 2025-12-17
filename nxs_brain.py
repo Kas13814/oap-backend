@@ -206,62 +206,48 @@ def _safe_json_loads(text: str) -> Optional[dict]:
     return None
 
 
-def call_ai(prompt: str) -> str:
-    """
-    استدعاء محرك الذكاء عبر REST API الرسمي.
-    لا نذكر اسم المحرك للمستخدم، هذه دالة داخلية فقط.
-    """
-    if not GEMINI_API_KEY:
-        raise AIEngineError("لا يوجد مفتاح API مضبوط في GEMINI_API_KEY / GENAI_API_KEY.")
+def call_ai(prompt: str, temperature: float = 0.4, max_tokens: int = 1024) -> str:
+    import os, time, requests
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
-    headers = {"Content-Type": "application/json; charset=utf-8"}
-    body = {
-        "contents": [
-            {
-                "parts": [
-                    {"text": prompt}
-                ]
-            }
-        ]
+    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("لا يوجد مفتاح API مضبوط في GEMINI_API_KEY / GENAI_API_KEY.")
+
+    model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+
+    payload = {
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": float(temperature),
+            "maxOutputTokens": int(max_tokens),
+        },
     }
-    params = {"key": GEMINI_API_KEY}
 
-    try:
-        resp = requests.post(
-            url,
-            headers=headers,
-            params=params,
-            data=json.dumps(body, ensure_ascii=False),
-            timeout=60,
-        )
-    except requests.RequestException as exc:
-        logger.error("HTTP error while calling AI engine: %s", exc)
-        raise AIEngineError(f"HTTP error while calling AI engine: {exc}") from exc
+    # ✅ Retry for overload/rate-limit
+    last_err = None
+    for attempt in range(5):  # 5 محاولات
+        r = requests.post(url, json=payload, timeout=60)
 
-    if resp.status_code != 200:
-        logger.warning("AI engine HTTP status: %s, body: %s", resp.status_code, resp.text)
-        try:
-            err_json = resp.json()
-            msg = err_json.get("error", {}).get("message", resp.text)
-        except Exception:
-            msg = resp.text
-        raise AIEngineError(f"AI engine returned HTTP {resp.status_code}: {msg}")
+        if r.status_code == 200:
+            data = r.json()
+            return (
+                data["candidates"][0]["content"]["parts"][0].get("text", "")
+                if data.get("candidates") else ""
+            )
 
-    data = resp.json()
-    try:
-        cands = data.get("candidates", [])
-        if not cands:
-            raise AIEngineError("no candidates in AI response")
-        parts = cands[0]["content"]["parts"]
-        texts = [p.get("text", "") for p in parts if isinstance(p, dict)]
-        txt = "\n".join(t for t in texts if t).strip()
-        if not txt:
-            raise AIEngineError("empty text from AI response")
-        return txt
-    except Exception as exc:
-        logger.error("AI parse error: %s", exc)
-        raise AIEngineError(f"Failed to parse AI response: {exc}") from exc
+        # إذا كان ضغط/تحديد (503/429) نعيد المحاولة
+        if r.status_code in (429, 503):
+            wait = 1.5 * (2 ** attempt)  # 1.5s, 3s, 6s, 12s, 24s
+            time.sleep(wait)
+            last_err = f"HTTP {r.status_code}: {r.text}"
+            continue
+
+        # أي خطأ آخر = توقف
+        raise RuntimeError(f"AI engine returned HTTP {r.status_code}: {r.text}")
+
+    # بعد كل المحاولات
+    raise RuntimeError(f"AI engine returned after retries: {last_err}")
 
 
 # =================== مرحلة 1: التخطيط الذكي ===================
