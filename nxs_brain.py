@@ -222,7 +222,6 @@ def call_ai(prompt: str, model_name: str = None, temperature: float = 0.4, max_t
 
     # 2. الرابط الصحيح والمستقر (استخدام v1 بدلاً من v1beta)
     url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
-
     payload = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
         "generationConfig": {
