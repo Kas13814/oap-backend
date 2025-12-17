@@ -1,0 +1,289 @@
+/* ==================================== */
+/* 1. الإعدادات الأساسية للجسم والخطوط */
+/* ==================================== */
+body {
+    /* تطبيق خط Cairo الأنيق لجميع النصوص */
+    font-family: 'Cairo', sans-serif;
+    /* خلفية بيضاء ناعمة */
+    background-color: #f8f9fa;
+    /* محاذاة النص لليمين (لغة عربية) */
+    direction: rtl;
+    text-align: right;
+    margin: 0;
+    padding: 0;
+    color: #343a40; /* لون نص أساسي داكن */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh; /* ضمان تغطية الشاشة بالكامل */
+}
+
+/* ==================================== */
+/* 2. تصميم الرأس (Header) */
+/* ==================================== */
+.page-header {
+    background-color: #004d40; /* لون TCC أخضر داكن (كأنها شريط علوي) */
+    color: white;
+    padding: 30px 20px;
+    width: 100%;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 50px;
+    text-align: center;
+}
+
+.page-header h1 {
+    font-size: 2.5em;
+    margin-bottom: 5px;
+}
+
+.page-header p {
+    font-size: 1.1em;
+    opacity: 0.9;
+}
+
+/* ==================================== */
+/* 3. حاوية الأزرار الرئيسية */
+/* ==================================== */
+.dashboard-buttons {
+    display: flex;
+    /* جعل العناصر تتوزع على سطر واحد */
+    gap: 30px;
+    /* ترك الأزرار في منتصف الصفحة */
+    padding: 20px;
+    flex-wrap: wrap; /* للسماح للأزرار بالنزول لسطر جديد في الشاشات الصغيرة */
+    justify-content: center;
+}
+
+/* ==================================== */
+/* 4. التصميم العام للأزرار (Button Class) */
+/* ==================================== */
+.button {
+    text-decoration: none; /* إزالة خط تحت الروابط */
+    padding: 25px 40px;
+    border-radius: 12px;
+    font-size: 1.3em;
+    font-weight: 700;
+    transition: transform 0.2s, box-shadow 0.2s; /* تأثير حركة سلس */
+    width: 280px; /* عرض ثابت للأزرار */
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border: none;
+    display: flex;
+    flex-direction: column; /* جعل الأيقونة والنص فوق بعض */
+    align-items: center;
+}
+
+/* تأثير الـ Hover (عند مرور مؤشر الماوس) */
+.button:hover {
+    transform: translateY(-5px); /* رفع الزر قليلاً */
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.button .icon {
+    font-size: 2.5em; /* حجم الأيقونة */
+    margin-bottom: 10px;
+}
+
+/* ==================================== */
+/* 5. تصميم الأزرار حسب الفئة (الألوان) */
+/* ==================================== */
+
+/* الزر الأساسي (AI Chat) - يجب أن يكون الأبرز */
+.primary-btn {
+    background-color: #1e88e5; /* أزرق مشرق */
+    color: white;
+}
+
+/* الزر الثانوي (النماذج) */
+.secondary-btn {
+    background-color: #ffb300; /* ذهبي/برتقالي للنماذج */
+    color: #343a40;
+}
+
+/* الزر الثالث (Dashboard) */
+.tertiary-btn {
+    background-color: #6d4c41; /* بني داكن/ترابي */
+    color: white;
+}
+
+/* ==================================== */
+/* 6. تذييل الصفحة (Footer) */
+/* ==================================== */
+.page-footer {
+    margin-top: auto; /* يدفع التذييل إلى الأسفل دائماً */
+    padding: 20px;
+    width: 100%;
+    text-align: center;
+    background-color: #e9ecef;
+    color: #6c757d;
+    font-size: 0.9em;
+}
+
+/* ==================================== */
+/* 7. استجابة الشاشة (Media Query) */
+/* لضمان مظهر جيد على الهواتف */
+/* ==================================== */
+@media (max-width: 768px) {
+    .dashboard-buttons {
+        flex-direction: column; /* ترتيب الأزرار عمودياً */
+        align-items: center;
+        gap: 20px;
+    }
+
+    .button {
+        width: 90%; /* شغل معظم عرض الشاشة */
+    }
+}
+
+/* ==================================== */
+/* 8. تصميم واجهة الدردشة الذكية NXS */
+/* ==================================== */
+
+.chat-page {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* حاوية الدردشة الرئيسية */
+.chat-container {
+    background-color: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    height: 70vh;
+    max-height: 750px;
+    overflow: hidden;
+}
+
+/* رأس الدردشة (يمكن وضع شعار NXS + حالة الاتصال) */
+.chat-header {
+    padding: 16px 20px;
+    background: linear-gradient(90deg, #004d40, #1e88e5);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.chat-header-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.chat-header-status {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+/* منطقة الرسائل */
+.chat-messages {
+    flex: 1;
+    padding: 16px 20px;
+    overflow-y: auto;
+    background: linear-gradient(to bottom, #f8f9fa, #eef2f5);
+}
+
+/* كل فقاعة رسالة */
+.chat-message {
+    max-width: 75%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    margin-bottom: 10px;
+    line-height: 1.6;
+    font-size: 0.96rem;
+    word-wrap: break-word;
+}
+
+/* رسالة المستخدم */
+.chat-message.user {
+    background-color: #1e88e5;
+    color: #ffffff;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+}
+
+/* رسالة الذكاء الاصطناعي */
+.chat-message.ai {
+    background-color: #ffffff;
+    color: #343a40;
+    border: 1px solid #e0e4e8;
+    margin-right: auto;
+    border-bottom-left-radius: 4px;
+}
+
+/* شريط الكتابة أسفل الدردشة */
+.chat-input-bar {
+    border-top: 1px solid #e0e4e8;
+    padding: 10px 12px;
+    background-color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.chat-input-bar textarea {
+    flex: 1;
+    resize: none;
+    border-radius: 10px;
+    border: 1px solid #ced4da;
+    padding: 10px 12px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 0.95rem;
+    min-height: 42px;
+    max-height: 120px;
+    outline: none;
+}
+
+.chat-input-bar textarea:focus {
+    border-color: #1e88e5;
+    box-shadow: 0 0 0 1px rgba(30, 136, 229, 0.2);
+}
+
+/* زر الإرسال */
+.chat-send-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    background-color: #004d40;
+    color: #ffffff;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+    white-space: nowrap;
+}
+
+.chat-send-btn:hover {
+    background-color: #00695c;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.chat-send-btn:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+/* رسالة حالة أسفل الدردشة (مثل: "يتم الآن التحميل" أو "نظام NXS متصل") */
+.chat-status-line {
+    font-size: 0.85rem;
+    color: #6c757d;
+    padding: 4px 20px 10px 20px;
+}
+
+/* تحسين المظهر على الشاشات الصغيرة */
+@media (max-width: 768px) {
+    .chat-container {
+        height: 75vh;
+        border-radius: 12px;
+    }
+
+    .chat-message {
+        max-width: 90%;
+    }
+}

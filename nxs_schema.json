@@ -1,0 +1,3098 @@
+{
+  "version": "1.0",
+  "owner": "NXS • AirportOps",
+  "description": "Unified semantic schema for NXS AirportOps (employees, delays, absences, overtime, productivity, flights, operations).",
+  "tables": [
+    {
+      "name": "employee_absence",
+      "business_name": "Employee Absence",
+      "category": "Attendance & Time",
+      "description": "سجلات غياب الموظفين عن الدوام، تتضمن حالة إشعار الغياب وربطها بالتحقيقات والإجراءات الإدارية.",
+      "grain": "صف واحد لكل حالة غياب لموظف في يوم معين.",
+      "key_columns": [
+        "Employee ID",
+        "Date"
+      ],
+      "time_columns": [
+        "Date",
+        "Last Update"
+      ],
+      "columns": [
+        {
+          "name": "Absence Notification Status",
+          "type": "text",
+          "description": "حالة إشعار الغياب (مُبلغ، غير مُبلغ، متأخر...)."
+        },
+        {
+          "name": "Administrative procedure",
+          "type": "text",
+          "description": "الإجراء الإداري المتخذ أو المقترح."
+        },
+        {
+          "name": "Consent to send investigation",
+          "type": "text",
+          "description": "الموافقة على إرسال التحقيق."
+        },
+        {
+          "name": "Current reminder",
+          "type": "text",
+          "description": "أحدث تذكير أو متابعة للغياب/التحقيق."
+        },
+        {
+          "name": "Date",
+          "type": "date",
+          "description": "تاريخ يوم الغياب."
+        },
+        {
+          "name": "Department",
+          "type": "text",
+          "description": "القسم الذي ينتمي إليه الموظف."
+        },
+        {
+          "name": "Employee ID",
+          "type": "text",
+          "description": "رقم الموظف الغائب."
+        },
+        {
+          "name": "Employee Name",
+          "type": "text",
+          "description": "اسم الموظف الغائب."
+        },
+        {
+          "name": "Final action",
+          "type": "text",
+          "description": "الإجراء النهائي (إنذار، خصم، إلخ)."
+        },
+        {
+          "name": "Investigation status",
+          "type": "text",
+          "description": "حالة التحقيق (مفتوح/مغلق/تحت المتابعة)."
+        },
+        {
+          "name": "InvestigationID",
+          "type": "text",
+          "description": "معرّف التحقيق المرتبط بحالة الغياب إن وُجد."
+        },
+        {
+          "name": "Last Update",
+          "type": "datetime",
+          "description": "تاريخ ووقت آخر تحديث للسجل."
+        },
+        {
+          "name": "Manager Notes",
+          "type": "text",
+          "description": "ملاحظات المدير عن حالة الغياب."
+        },
+        {
+          "name": "Respond to the investigation",
+          "type": "text",
+          "description": "حالة رد الموظف على التحقيق."
+        },
+        {
+          "name": "Shift",
+          "type": "text",
+          "description": "الوردية التي غاب عنها الموظف."
+        }
+      ],
+      "relationships": [
+        {
+          "to_table": "employee_master",
+          "type": "M:1",
+          "on": [
+            "Employee ID"
+          ],
+          "description": "ربط الغياب ببيانات الموظف."
+        },
+        {
+          "to_table": "operational_event",
+          "type": "M:1",
+          "on": [
+            "InvestigationID"
+          ],
+          "description": "ربط الغياب بالأحداث التشغيلية/التحقيقات المشتركة."
+        }
+      ]
+    },
+    {
+      "name": "employee_delay",
+      "business_name": "Employee Work Delay (Attendance)",
+      "category": "Attendance & Time",
+      "description": "تأخيرات الموظفين عن الدوام (وليس تأخير الرحلات)، تشمل عدد الدقائق وسبب التأخير وربطها بالتحقيقات والإجراءات.",
+      "grain": "صف واحد لكل تأخير حضور لموظف في يوم معين.",
+      "key_columns": [
+        "Employee ID",
+        "Date"
+      ],
+      "time_columns": [
+        "Date",
+        "Last Update"
+      ],
+      "columns": [
+        {
+          "name": "Administrative procedure",
+          "type": "text",
+          "description": "الإجراء الإداري المتخذ أو المقترح."
+        },
+        {
+          "name": "Consent to send investigation",
+          "type": "text",
+          "description": "الموافقة على إرسال التحقيق."
+        },
+        {
+          "name": "Current reminder",
+          "type": "text",
+          "description": "آخر تذكير أو متابعة للتأخير/التحقيق."
+        },
+        {
+          "name": "Date",
+          "type": "date",
+          "description": "تاريخ يوم التأخير عن الدوام."
+        },
+        {
+          "name": "Delay Minutes",
+          "type": "number",
+          "description": "عدد دقائق التأخير عن بداية الوردية."
+        },
+        {
+          "name": "Delay Notification Status",
+          "type": "text",
+          "description": "حالة إشعار التأخير (مُبلغ، غير مُبلغ، متأخر...)."
+        },
+        {
+          "name": "Department",
+          "type": "text",
+          "description": "قسم الموظف في ذلك اليوم."
+        },
+        {
+          "name": "Employee ID",
+          "type": "text",
+          "description": "رقم الموظف المتأخر."
+        },
+        {
+          "name": "Employee Name",
+          "type": "text",
+          "description": "اسم الموظف المتأخر."
+        },
+        {
+          "name": "Final action",
+          "type": "text",
+          "description": "الإجراء النهائي (خصم، إنذار...)."
+        },
+        {
+          "name": "Investigation status",
+          "type": "text",
+          "description": "حالة التحقيق."
+        },
+        {
+          "name": "InvestigationID",
+          "type": "text",
+          "description": "معرّف التحقيق المرتبط بالتأخير إن وُجد."
+        },
+        {
+          "name": "Last Update",
+          "type": "datetime",
+          "description": "تاريخ ووقت آخر تحديث للسجل."
+        },
+        {
+          "name": "Manager Notes",
+          "type": "text",
+          "description": "ملاحظات المدير عن حالة التأخير."
+        },
+        {
+          "name": "Reason for Delay",
+          "type": "text",
+          "description": "سبب التأخير كما تم تسجيله."
+        },
+        {
+          "name": "Respond to the investigation",
+          "type": "text",
+          "description": "حالة رد الموظف على التحقيق."
+        },
+        {
+          "name": "Shift",
+          "type": "text",
+          "description": "الوردية التي تأخر عنها الموظف."
+        }
+      ],
+      "relationships": [
+        {
+          "to_table": "employee_master",
+          "type": "M:1",
+          "on": [
+            "Employee ID"
+          ],
+          "description": "ربط تأخيرات الحضور بالملف الرئيسي للموظف."
+        },
+        {
+          "to_table": "operational_event",
+          "type": "M:1",
+          "on": [
+            "InvestigationID"
+          ],
+          "description": "ربط التأخيرات بالأحداث التشغيلية والتحقيقات."
+        }
+      ]
+    },
+    {
+      "name": "employee_master",
+      "business_name": "Employee Master",
+      "category": "HR",
+      "description": "الجدول الرئيسي لجميع بيانات الموظفين الثابتة (الهوية، الجنس، الجنسية، القسم، الدرجة، التعيين، الحركة الوظيفية، سبب الخروج).",
+      "grain": "صف واحد لكل موظف لكل Record Date (آخر نسخة تعتبر الحالة الحالية).",
+      "key_columns": [
+        "Employee ID"
+      ],
+      "time_columns": [
+        "Record Date",
+        "Hiring Date",
+        "Action Effective Date"
+      ],
+      "columns": [
+        {
+          "name": "Action Effective Date",
+          "type": "date",
+          "description": "تاريخ سريان الإجراء الوظيفي."
+        },
+        {
+          "name": "Actual Role",
+          "type": "text",
+          "description": "الدور الفعلي الذي يمارسه الموظف داخل العمليات."
+        },
+        {
+          "name": "Current Department",
+          "type": "text",
+          "description": "القسم الحالي الذي يعمل به الموظف."
+        },
+        {
+          "name": "Department",
+          "type": "text",
+          "description": "القسم المرتبط بالسجل (قد يكون سابق أو حالي حسب الحركة)."
+        },
+        {
+          "name": "Employee ID",
+          "type": "text",
+          "description": "الرقم الوظيفي الفريد للموظف (المفتاح الأساسي المنطقي)."
+        },
+        {
+          "name": "Employee Name",
+          "type": "text",
+          "description": "الاسم الكامل للموظف."
+        },
+        {
+          "name": "Employment Action Type",
+          "type": "text",
+          "description": "نوع الإجراء الوظيفي (تعيين، ترقية، نقل، إنهاء...)."
+        },
+        {
+          "name": "Exit Reason",
+          "type": "text",
+          "description": "سبب خروج الموظف إن وجد."
+        },
+        {
+          "name": "Gender",
+          "type": "text",
+          "description": "جنس الموظف (ذكر / أنثى)."
+        },
+        {
+          "name": "Grade",
+          "type": "text",
+          "description": "الدرجة الوظيفية/المستوى الوظيفي."
+        },
+        {
+          "name": "Hiring Date",
+          "type": "date",
+          "description": "تاريخ تعيين الموظف لأول مرة في الشركة."
+        },
+        {
+          "name": "Job Title",
+          "type": "text",
+          "description": "المسمى الوظيفي الرسمي."
+        },
+        {
+          "name": "Latitude",
+          "type": "number",
+          "description": "حقل إضافي لموقع أو تصنيف جغرافي إن وجد."
+        },
+        {
+          "name": "Nationality",
+          "type": "text",
+          "description": "جنسية الموظف."
+        },
+        {
+          "name": "Note",
+          "type": "text",
+          "description": "ملاحظات عامة عن الموظف."
+        },
+        {
+          "name": "Previous Department",
+          "type": "text",
+          "description": "القسم السابق قبل آخر حركة."
+        },
+        {
+          "name": "Record Date",
+          "type": "date",
+          "description": "تاريخ تسجيل أو تحديث سجل الموظف."
+        },
+        {
+          "name": "Saudi or Non-Saudi",
+          "type": "text",
+          "description": "تصنيف الموظف سعودي / غير سعودي."
+        }
+      ],
+      "relationships": [
+        {
+          "to_table": "employee_absence",
+          "type": "1:M",
+          "on": [
+            "Employee ID"
+          ],
+          "description": "يربط الموظف بسجلات الغياب."
+        },
+        {
+          "to_table": "employee_delay",
+          "type": "1:M",
+          "on": [
+            "Employee ID"
+          ],
+          "description": "يربط الموظف بتأخيرات الحضور للدوام."
+        },
+        {
+          "to_table": "employee_overtime",
+          "type": "1:M",
+          "on": [
+            "Employee ID"
+          ],
+          "description": "يربط الموظف بساعات العمل الإضافية."
+        },
+        {
+          "to_table": "employee_sick_leave",
+          "type": "1:M",
+          "on": [
+            "Employee ID"
+          ],
+          "description": "يربط الموظف بإجازات المرضية."
+        },
+        {
+          "to_table": "employee_productivit_arr",
+          "type": "1:M",
+          "on": [
+            "Employee ID"
+          ],
+          "description": "إنتاجية الموظف على رحلات الوصول."
+        },
+        {
+          "to_table": "employee_productivit_dep",
+          "type": "1:M",
+          "on": [
+            "Employee ID"
+          ],
+          "description": "إنتاجية الموظف على رحلات المغادرة."
+        },
+        {
+          "to_table": "tcc_flight_delay",
+          "type": "1:M",
+          "on": [
+            "Employee ID"
+          ],
+          "description": "ربط الموظف بحوادث وتأخيرات الرحلات في مركز TCC."
+        },
+        {
+          "to_table": "operational_event",
+          "type": "1:M",
+          "on": [
+            "Employee ID"
+          ],
+          "description": "ربط الموظف بالأحداث التشغيلية والتحقيقات والعقوبات."
+        }
+      ]
+    },
+    {
+      "name": "employee_overtime",
+      "business_name": "Employee Overtime",
+      "category": "Attendance & Time",
+      "description": "سجلات الساعات الإضافية للموظفين، تشمل تواريخ الإشعار، نوع التكليف، عدد الأيام والساعات الكلية، وأسباب التكليف.",
+      "grain": "صف واحد لكل تكليف إضافي لموظف في تاريخ معين.",
+      "key_columns": [
+        "Employee ID",
+        "Assignment Date"
+      ],
+      "time_columns": [
+        "Notification Date",
+        "Assignment Date"
+      ],
+      "columns": [
+        {
+          "name": "Assignment Date",
+          "type": "date",
+          "description": "تاريخ تنفيذ التكليف/الساعات الإضافية."
+        },
+        {
+          "name": "Assignment Days",
+          "type": "number",
+          "description": "عدد الأيام المرتبطة بالتكليف إن وجدت."
+        },
+        {
+          "name": "Assignment Reason",
+          "type": "text",
+          "description": "سبب التكليف بالساعات الإضافية."
+        },
+        {
+          "name": "Assignment Type",
+          "type": "text",
+          "description": "نوع التكليف (اضافي، مناولة، تغطية، إلخ)."
+        },
+        {
+          "name": "Department",
+          "type": "text",
+          "description": "القسم الذي ينتمي إليه الموظف أثناء التكليف."
+        },
+        {
+          "name": "Duty Manager ID",
+          "type": "text",
+          "description": "رقم مدير الوردية الذي وافق على التكليف."
+        },
+        {
+          "name": "Duty Manager Name",
+          "type": "text",
+          "description": "اسم مدير الوردية."
+        },
+        {
+          "name": "Employee ID",
+          "type": "text",
+          "description": "رقم الموظف الذي نفذ الساعات الإضافية."
+        },
+        {
+          "name": "Employee Name",
+          "type": "text",
+          "description": "اسم الموظف."
+        },
+        {
+          "name": "Notes",
+          "type": "text",
+          "description": "ملاحظات إضافية."
+        },
+        {
+          "name": "Notification Date",
+          "type": "date",
+          "description": "تاريخ إشعار الموظف بالتكليف."
+        },
+        {
+          "name": "Notification Time",
+          "type": "time",
+          "description": "وقت إشعار الموظف بالتكليف."
+        },
+        {
+          "name": "Shift",
+          "type": "text",
+          "description": "الوردية التي تم فيها تنفيذ الساعات الإضافية أو تسجيلها."
+        },
+        {
+          "name": "Total Hours",
+          "type": "number",
+          "description": "إجمالي عدد الساعات الإضافية."
+        }
+      ],
+      "relationships": [
+        {
+          "to_table": "employee_master",
+          "type": "M:1",
+          "on": [
+            "Employee ID"
+          ],
+          "description": "ربط الساعات الإضافية مع الملف الرئيسي للموظف."
+        }
+      ]
+    },
+    {
+      "name": "employee_productivit_arr",
+      "business_name": "Employee Productivity - ARR",
+      "category": "Productivity",
+      "description": "إنتاجية الموظفين على رحلات الوصول (عدد الرحلات والتعاملات لكل موظف).",
+      "grain": "صف واحد لكل رحلة وصول تعامل معها موظف معين في تاريخ محدد.",
+      "key_columns": [
+        "Date",
+        "FLT",
+        "Employee ID"
+      ],
+      "time_columns": [
+        "Date",
+        "STA",
+        "MTA",
+        "ATA"
+      ],
+      "columns": [
+        {
+          "name": "ATA",
+          "type": "datetime",
+          "description": "وقت الوصول الفعلي."
+        },
+        {
+          "name": "Date",
+          "type": "date",
+          "description": "تاريخ الرحلة."
+        },
+        {
+          "name": "Employee ID",
+          "type": "text",
+          "description": "رقم الموظف الذي استلم الرحلة عند الوصول."
+        },
+        {
+          "name": "Employee Name",
+          "type": "text",
+          "description": "اسم الموظف."
+        },
+        {
+          "name": "FLT",
+          "type": "text",
+          "description": "رقم الرحلة (Flight Number)."
+        },
+        {
+          "name": "GATE",
+          "type": "text",
+          "description": "البوابة المستخدمة."
+        },
+        {
+          "name": "MTA",
+          "type": "datetime",
+          "description": "وقت وصول معدل/مخطط (Modified Time of Arrival) إن وجد."
+        },
+        {
+          "name": "ORG",
+          "type": "text",
+          "description": "محطة الانطلاق (Origin)."
+        },
+        {
+          "name": "REG",
+          "type": "text",
+          "description": "رقم تسجيل الطائرة Aircraft Registration."
+        },
+        {
+          "name": "REGM",
+          "type": "text",
+          "description": "رمز إضافي للتسجيل أو نوع الطائرة."
+        },
+        {
+          "name": "REMARK",
+          "type": "text",
+          "description": "ملاحظات حول الرحلة أو الخدمة."
+        },
+        {
+          "name": "STA",
+          "type": "datetime",
+          "description": "وقت الوصول المجدول."
+        }
+      ],
+      "relationships": [
+        {
+          "to_table": "employee_master",
+          "type": "M:1",
+          "on": [
+            "Employee ID"
+          ],
+          "description": "ربط إنتاجية الوصول بملف الموظف."
+        }
+      ]
+    },
+    {
+      "name": "employee_productivit_dep",
+      "business_name": "Employee Productivity - DEP",
+      "category": "Productivity",
+      "description": "إنتاجية الموظفين على رحلات المغادرة (عدد الرحلات والتعاملات لكل موظف).",
+      "grain": "صف واحد لكل رحلة مغادرة تعامل معها موظف معين في تاريخ محدد.",
+      "key_columns": [
+        "Date",
+        "FLT",
+        "Employee ID"
+      ],
+      "time_columns": [
+        "Date",
+        "STD",
+        "MTD",
+        "ATD"
+      ],
+      "columns": [
+        {
+          "name": "ATD",
+          "type": "datetime",
+          "description": "وقت المغادرة الفعلي."
+        },
+        {
+          "name": "Date",
+          "type": "date",
+          "description": "تاريخ الرحلة."
+        },
+        {
+          "name": "DES",
+          "type": "text",
+          "description": "وجهة الرحلة (Destination)."
+        },
+        {
+          "name": "Employee ID",
+          "type": "text",
+          "description": "رقم الموظف الذي استلم الرحلة عند المغادرة."
+        },
+        {
+          "name": "Employee Name",
+          "type": "text",
+          "description": "اسم الموظف."
+        },
+        {
+          "name": "FLT",
+          "type": "text",
+          "description": "رقم الرحلة."
+        },
+        {
+          "name": "GATE",
+          "type": "text",
+          "description": "البوابة المستخدمة."
+        },
+        {
+          "name": "MTD",
+          "type": "datetime",
+          "description": "وقت مغادرة معدل/مخطط."
+        },
+        {
+          "name": "REG",
+          "type": "text",
+          "description": "رقم تسجيل الطائرة."
+        },
+        {
+          "name": "REGM",
+          "type": "text",
+          "description": "رمز إضافي للتسجيل أو النوع."
+        },
+        {
+          "name": "REMARK",
+          "type": "text",
+          "description": "ملاحظات حول الرحلة أو الخدمة."
+        },
+        {
+          "name": "STD",
+          "type": "datetime",
+          "description": "وقت المغادرة المجدول."
+        }
+      ],
+      "relationships": [
+        {
+          "to_table": "employee_master",
+          "type": "M:1",
+          "on": [
+            "Employee ID"
+          ],
+          "description": "ربط إنتاجية المغادرة بملف الموظف."
+        }
+      ]
+    },
+    {
+      "name": "employee_sick_leave",
+      "business_name": "Employee Sick Leave",
+      "category": "Attendance & Time",
+      "description": "سجلات الإجازات المرضية للموظفين، تشمل فترة الإجازة وربطها بالوردية والقسم.",
+      "grain": "صف واحد لكل طلب إجازة مرضية لموظف.",
+      "key_columns": [
+        "Employee ID",
+        "Sick leave start date"
+      ],
+      "time_columns": [
+        "Date",
+        "Sick leave start date",
+        "Sick leave end date"
+      ],
+      "columns": [
+        {
+          "name": "Date",
+          "type": "date",
+          "description": "تاريخ تسجيل السجل أو اليوم المرجعي."
+        },
+        {
+          "name": "Department",
+          "type": "text",
+          "description": "قسم الموظف أثناء الإجازة المرضية."
+        },
+        {
+          "name": "Employee ID",
+          "type": "text",
+          "description": "رقم الموظف الذي حصل على الإجازة المرضية."
+        },
+        {
+          "name": "Employee Name",
+          "type": "text",
+          "description": "اسم الموظف."
+        },
+        {
+          "name": "Shift",
+          "type": "text",
+          "description": "الوردية التي سُجلت فيها الإجازة أو أثرت عليها."
+        },
+        {
+          "name": "Sick leave end date",
+          "type": "date",
+          "description": "تاريخ نهاية الإجازة المرضية."
+        },
+        {
+          "name": "Sick leave start date",
+          "type": "date",
+          "description": "تاريخ بداية الإجازة المرضية."
+        }
+      ],
+      "relationships": [
+        {
+          "to_table": "employee_master",
+          "type": "M:1",
+          "on": [
+            "Employee ID"
+          ],
+          "description": "ربط الإجازة المرضية بالملف الرئيسي للموظف."
+        }
+      ]
+    },
+    {
+      "name": "operational_event",
+      "business_name": "Operational Event & Disciplinary Actions",
+      "category": "Discipline & Compliance",
+      "description": "جدول موحّد للأحداث التشغيلية المرتبطة بالموظفين مثل التحقيقات، المخالفات، والإجراءات التأديبية.",
+      "grain": "صف واحد لكل حدث/تحقيق/إجراء متعلق بموظف أو حالة تشغيلية.",
+      "key_columns": [
+        "InvestigationID"
+      ],
+      "time_columns": [
+        "Event Date",
+        "Last Update"
+      ],
+      "columns": [
+        {
+          "name": "Administrative procedure",
+          "type": "text",
+          "description": "الإجراء الإداري المقترح أو المتخذ."
+        },
+        {
+          "name": "Consent to send investigation",
+          "type": "text",
+          "description": "الموافقة على إرسال التحقيق للجهات المعنية."
+        },
+        {
+          "name": "Current reminder",
+          "type": "text",
+          "description": "آخر تذكير أو متابعة للحالة."
+        },
+        {
+          "name": "Department",
+          "type": "text",
+          "description": "القسم المسؤول أو المرتبط بالحدث."
+        },
+        {
+          "name": "Disciplinary Action",
+          "type": "text",
+          "description": "وصف مختصر للإجراء التأديبي المتخذ."
+        },
+        {
+          "name": "Employee ID",
+          "type": "text",
+          "description": "رقم الموظف المعني بالحدث إن وجد."
+        },
+        {
+          "name": "Employee Name",
+          "type": "text",
+          "description": "اسم الموظف المعني."
+        },
+        {
+          "name": "Event Date",
+          "type": "date",
+          "description": "تاريخ وقوع الحدث."
+        },
+        {
+          "name": "Event Type",
+          "type": "text",
+          "description": "نوع الحدث (مخالفة، غياب متكرر، حادثة سلامة...)."
+        },
+        {
+          "name": "Final action",
+          "type": "text",
+          "description": "الإجراء النهائي (مثال: لفت نظر، إنذار، فصل)."
+        },
+        {
+          "name": "Investigation status",
+          "type": "text",
+          "description": "الحالة الحالية للتحقيق."
+        },
+        {
+          "name": "InvestigationID",
+          "type": "text",
+          "description": "معرّف التحقيق الموحد الذي يربط بين الجداول (غياب، تأخير، رحلات...)."
+        },
+        {
+          "name": "Last Update",
+          "type": "datetime",
+          "description": "تاريخ ووقت آخر تحديث للسجل."
+        },
+        {
+          "name": "Manager Notes",
+          "type": "text",
+          "description": "ملاحظات مدير القسم/المركز عن الحدث."
+        },
+        {
+          "name": "Respond to the investigation",
+          "type": "text",
+          "description": "رد الموظف أو القسم على التحقيق."
+        },
+        {
+          "name": "Shift",
+          "type": "text",
+          "description": "الوردية المتعلقة بالحدث."
+        }
+      ],
+      "relationships": [
+        {
+          "to_table": "employee_master",
+          "type": "M:1",
+          "on": [
+            "Employee ID"
+          ],
+          "description": "ربط الحدث ببيانات الموظف."
+        },
+        {
+          "to_table": "employee_absence",
+          "type": "1:M",
+          "on": [
+            "InvestigationID"
+          ],
+          "description": "ربط أحداث الغياب بهذا الحدث الموحد."
+        },
+        {
+          "to_table": "employee_delay",
+          "type": "1:M",
+          "on": [
+            "InvestigationID"
+          ],
+          "description": "ربط تأخيرات الحضور بهذا الحدث الموحد."
+        },
+        {
+          "to_table": "tcc_flight_delay",
+          "type": "1:M",
+          "on": [
+            "InvestigationID"
+          ],
+          "description": "ربط حوادث الرحلات والتحقيقات التشغيلية بنفس InvestigationID."
+        }
+      ]
+    },
+    {
+      "name": "sgs_flight_delay",
+      "business_name": "SGS Flight Delay (Station Level)",
+      "category": "Flight Delays",
+      "description": "جميع تأخيرات الرحلات على مستوى المحطة (SGS RUH) بدون ربط مباشر بالموظفين الفرديين، تستخدم لتحليل التأخيرات حسب شركة الطيران والوجهة وغيرها.",
+      "grain": "صف واحد لكل رحلة متأخرة في تاريخ معين.",
+      "key_columns": [
+        "Date",
+        "Airlines",
+        "Flight Number"
+      ],
+      "time_columns": [
+        "Date",
+        "STD",
+        "ATD"
+      ],
+      "columns": [
+        {
+          "name": "Airlines",
+          "type": "text",
+          "description": "شركة الطيران المالكة للرحلة."
+        },
+        {
+          "name": "ATD",
+          "type": "datetime",
+          "description": "وقت الإقلاع الفعلي (Actual Time of Departure)."
+        },
+        {
+          "name": "Date",
+          "type": "date",
+          "description": "تاريخ الرحلة / الحدث."
+        },
+        {
+          "name": "Delay Code",
+          "type": "text",
+          "description": "كود التأخير حسب دليل IATA / دليل الشركة (مثال: 15I, 33A...)."
+        },
+        {
+          "name": "Destination",
+          "type": "text",
+          "description": "وجهة الرحلة (IATA أو اسم مدينة)."
+        },
+        {
+          "name": "Flight Category",
+          "type": "text",
+          "description": "تصنيف الرحلة (داخلية، دولية، أجنبية...)."
+        },
+        {
+          "name": "Flight Number",
+          "type": "text",
+          "description": "رقم الرحلة."
+        },
+        {
+          "name": "Gate",
+          "type": "text",
+          "description": "بوابة المغادرة/الوصول."
+        },
+        {
+          "name": "Root cause",
+          "type": "text",
+          "description": "السبب الجذري للتأخير كما تم تسجيله."
+        },
+        {
+          "name": "Shift",
+          "type": "text",
+          "description": "الوردية (Shift A/B/C ...)."
+        },
+        {
+          "name": "STD",
+          "type": "datetime",
+          "description": "وقت الإقلاع المجدول (Scheduled Time of Departure)."
+        }
+      ],
+      "relationships": [
+        {
+          "to_table": "tcc_flight_delay",
+          "type": "M:M",
+          "on": [
+            "Date",
+            "Flight Number"
+          ],
+          "description": "ربط بين تأخيرات المحطة وسجلات مركز العمليات TCC لنفس الرحلة."
+        }
+      ]
+    },
+    {
+      "name": "shift_report",
+      "business_name": "Shift Report",
+      "category": "Operations",
+      "description": "تقارير الوردية اليومية لقسم TCC تشمل توزيع المسؤوليات، عدد الرحلات، حالات التأخير، وضع السيارات وأجهزة الاتصال، وتعليقات لكل نطاق.",
+      "grain": "صف واحد لكل وردية لكل يوم ولكل قسم.",
+      "key_columns": [
+        "Date",
+        "Shift",
+        "Department"
+      ],
+      "time_columns": [
+        "Date"
+      ],
+      "columns": [
+        {
+          "name": "Arrivals Domestic",
+          "type": "number",
+          "description": "عدد رحلات الوصول الداخلية."
+        },
+        {
+          "name": "Arrivals International+Foreign",
+          "type": "number",
+          "description": "عدد رحلات الوصول الدولية/الأجنبية."
+        },
+        {
+          "name": "Cars In Service",
+          "type": "number",
+          "description": "عدد السيارات الجاهزة للخدمة."
+        },
+        {
+          "name": "Cars Out Of Service",
+          "type": "number",
+          "description": "عدد السيارات خارج الخدمة."
+        },
+        {
+          "name": "Comments Domestic",
+          "type": "text",
+          "description": "تعليقات خاصة بالرحلات الداخلية."
+        },
+        {
+          "name": "Comments International+Foreign",
+          "type": "text",
+          "description": "تعليقات خاصة بالدولية/الأجنبية."
+        },
+        {
+          "name": "Control 1 End Time",
+          "type": "time",
+          "description": "وقت نهاية عمل المراقب 1."
+        },
+        {
+          "name": "Control 1 ID",
+          "type": "text",
+          "description": "رقم أول مراقب في الوردية."
+        },
+        {
+          "name": "Control 1 Name",
+          "type": "text",
+          "description": "اسم أول مراقب."
+        },
+        {
+          "name": "Control 1 Start Time",
+          "type": "time",
+          "description": "وقت بداية عمل المراقب 1."
+        },
+        {
+          "name": "Control 2 End Time",
+          "type": "time",
+          "description": "وقت نهاية عمل المراقب 2."
+        },
+        {
+          "name": "Control 2 ID",
+          "type": "text",
+          "description": "رقم المراقب 2."
+        },
+        {
+          "name": "Control 2 Name",
+          "type": "text",
+          "description": "اسم المراقب 2."
+        },
+        {
+          "name": "Control 2 Start Time",
+          "type": "time",
+          "description": "وقت بداية عمل المراقب 2."
+        },
+        {
+          "name": "Date",
+          "type": "date",
+          "description": "تاريخ التقرير."
+        },
+        {
+          "name": "Delayed Arrivals Domestic",
+          "type": "number",
+          "description": "عدد رحلات الوصول الداخلية المتأخرة."
+        },
+        {
+          "name": "Delayed Arrivals International+Foreign",
+          "type": "number",
+          "description": "عدد رحلات الوصول الدولية/الأجنبية المتأخرة."
+        },
+        {
+          "name": "Delayed Departures Domestic",
+          "type": "number",
+          "description": "عدد رحلات المغادرة الداخلية المتأخرة."
+        },
+        {
+          "name": "Delayed Departures International+Foreign",
+          "type": "number",
+          "description": "عدد رحلات المغادرة الدولية/الأجنبية المتأخرة."
+        },
+        {
+          "name": "Department",
+          "type": "text",
+          "description": "القسم (TCC، مراقبة الحركة، إلخ) المرتبط بالتقرير."
+        },
+        {
+          "name": "Departures Domestic",
+          "type": "number",
+          "description": "عدد رحلات المغادرة الداخلية."
+        },
+        {
+          "name": "Departures International+Foreign",
+          "type": "number",
+          "description": "عدد رحلات المغادرة الدولية/الأجنبية."
+        },
+        {
+          "name": "Duty Manager All Halls ID",
+          "type": "text",
+          "description": "رقم مدير الوردية لكل الصالات."
+        },
+        {
+          "name": "Duty Manager All Halls Name",
+          "type": "text",
+          "description": "اسم مدير جميع الصالات."
+        },
+        {
+          "name": "Duty Manager Domestic ID",
+          "type": "text",
+          "description": "رقم مدير الوردية للرحلات الداخلية."
+        },
+        {
+          "name": "Duty Manager Domestic Name",
+          "type": "text",
+          "description": "اسم مدير الوردية للداخلية."
+        },
+        {
+          "name": "Duty Manager International+Foreign ID",
+          "type": "text",
+          "description": "رقم مدير الوردية للرحلات الدولية والأجنبية."
+        },
+        {
+          "name": "Duty Manager International+Foreign Name",
+          "type": "text",
+          "description": "اسم مدير الوردية للدولية/الأجنبية."
+        },
+        {
+          "name": "No Show",
+          "type": "number",
+          "description": "عدد الموظفين الذين لم يحضروا الوردية."
+        },
+        {
+          "name": "On Duty",
+          "type": "number",
+          "description": "عدد الموظفين على رأس العمل في الوردية."
+        },
+        {
+          "name": "Shift",
+          "type": "text",
+          "description": "الوردية التي يغطيها التقرير."
+        },
+        {
+          "name": "Supervisor All Halls ID",
+          "type": "text",
+          "description": "رقم المشرف لجميع الصالات."
+        },
+        {
+          "name": "Supervisor All Halls Name",
+          "type": "text",
+          "description": "اسم المشرف لجميع الصالات."
+        },
+        {
+          "name": "Supervisor Domestic ID",
+          "type": "text",
+          "description": "رقم المشرف للرحلات الداخلية."
+        },
+        {
+          "name": "Supervisor Domestic Name",
+          "type": "text",
+          "description": "اسم المشرف للداخلية."
+        },
+        {
+          "name": "Supervisor International+Foreign ID",
+          "type": "text",
+          "description": "رقم المشرف للرحلات الدولية والأجنبية."
+        },
+        {
+          "name": "Supervisor International+Foreign Name",
+          "type": "text",
+          "description": "اسم المشرف للدولية/الأجنبية."
+        },
+        {
+          "name": "Wireless Devices In Service",
+          "type": "number",
+          "description": "عدد أجهزة الاتصال اللاسلكية الجاهزة."
+        },
+        {
+          "name": "Wireless Devices Out Of Service",
+          "type": "number",
+          "description": "عدد أجهزة الاتصال اللاسلكية خارج الخدمة."
+        }
+      ],
+      "relationships": [
+        {
+          "to_table": "tcc_flight_delay",
+          "type": "1:M",
+          "on": [
+            "Date",
+            "Shift",
+            "Department"
+          ],
+          "description": "ربط تقرير الوردية بالحوادث والتأخيرات في نفس الوردية والقسم."
+        }
+      ]
+    },
+    {
+      "name": "tcc_flight_delay",
+      "business_name": "TCC Flight Delay / Operations Event Record",
+      "category": "Flight Delays",
+      "description": "سجل تفصيلي لتأخيرات الرحلات المرتبطة بقسم TCC ومركز مراقبة الحركة، يحتوي على معلومات عن الموظفين، الواجبات، المخالفات، التحقيقات، والإجراءات المتخذة.",
+      "grain": "صف واحد لكل حادثة تأخير/حدث تشغيلي لرحلة محددة في يوم محدد.",
+      "key_columns": [
+        "Date",
+        "Department",
+        "Arrival Flight Number",
+        "Departure Flight Number",
+        "Employee ID",
+        "InvestigationID"
+      ],
+      "time_columns": [
+        "Date",
+        "STA",
+        "ATA",
+        "STD",
+        "ATD",
+        "Last Update"
+      ],
+      "columns": [
+        {
+          "name": "Administrative procedure",
+          "type": "text",
+          "description": "الإجراء الإداري المقترح أو المنفذ."
+        },
+        {
+          "name": "Airlines",
+          "type": "text",
+          "description": "شركة الطيران للرحلة."
+        },
+        {
+          "name": "Arrival Destination",
+          "type": "text",
+          "description": "المحطة القادمة منها الرحلة."
+        },
+        {
+          "name": "Arrival Flight Number",
+          "type": "text",
+          "description": "رقم الرحلة عند الوصول."
+        },
+        {
+          "name": "Arrival Violations",
+          "type": "text",
+          "description": "وصف المخالفات أو الإخفاقات المرتبطة بجانب الوصول."
+        },
+        {
+          "name": "ATA",
+          "type": "datetime",
+          "description": "وقت الوصول الفعلي (Actual Time of Arrival)."
+        },
+        {
+          "name": "ATD",
+          "type": "datetime",
+          "description": "وقت المغادرة الفعلي."
+        },
+        {
+          "name": "Consent to send investigation",
+          "type": "text",
+          "description": "الموافقة على إرسال التحقيق للجهات المعنية."
+        },
+        {
+          "name": "Control ID",
+          "type": "text",
+          "description": "رقم المراقب/المسيطر في غرفة العمليات."
+        },
+        {
+          "name": "Control Name",
+          "type": "text",
+          "description": "اسم المراقب."
+        },
+        {
+          "name": "Current reminder",
+          "type": "text",
+          "description": "أحدث تذكير / متابعة للتحقيق."
+        },
+        {
+          "name": "Date",
+          "type": "date",
+          "description": "تاريخ اليوم الذي حدثت فيه الواقعة / التأخير."
+        },
+        {
+          "name": "Department",
+          "type": "text",
+          "description": "القسم المسؤول (TCC, مراقبة الحركة, FIC Saudia, LC Saudia...)."
+        },
+        {
+          "name": "Departure Destination",
+          "type": "text",
+          "description": "وجهة الرحلة المغادرة."
+        },
+        {
+          "name": "Departure Flight Number",
+          "type": "text",
+          "description": "رقم الرحلة عند المغادرة."
+        },
+        {
+          "name": "Departure Violations",
+          "type": "text",
+          "description": "المخالفات المرتبطة بالمغادرة."
+        },
+        {
+          "name": "Description of Incident",
+          "type": "text",
+          "description": "وصف تفصيلي للحادثة."
+        },
+        {
+          "name": "Duty Manager ID",
+          "type": "text",
+          "description": "رقم مدير الوردية المسؤول عن الواقعة."
+        },
+        {
+          "name": "Duty Manager Name",
+          "type": "text",
+          "description": "اسم مدير الوردية."
+        },
+        {
+          "name": "Employee ID",
+          "type": "text",
+          "description": "الرقم الوظيفي للموظف الأساسي المرتبط بالحادثة."
+        },
+        {
+          "name": "Employee Name",
+          "type": "text",
+          "description": "اسم الموظف الأساسي المرتبط بالحادثة."
+        },
+        {
+          "name": "Failure Impact",
+          "type": "text",
+          "description": "تأثير الفشل على التشغيل/الأمان/العميل."
+        },
+        {
+          "name": "Final action",
+          "type": "text",
+          "description": "الإجراء النهائي المتخذ (إنذار، لفت نظر، فصل...)."
+        },
+        {
+          "name": "Flight Category",
+          "type": "text",
+          "description": "تصنيف الرحلة (داخلية/دولية...)."
+        },
+        {
+          "name": "Flight Direction",
+          "type": "text",
+          "description": "اتجاه الرحلة (ARR/DEP أو Inbound/Outbound)."
+        },
+        {
+          "name": "Gate",
+          "type": "text",
+          "description": "البوابة المستخدمة في الرحلة."
+        },
+        {
+          "name": "Investigation status",
+          "type": "text",
+          "description": "حالة التحقيق (مفتوح، مغلق، تحت الإجراء...)."
+        },
+        {
+          "name": "Investigation status2",
+          "type": "text",
+          "description": "حقل حالة إضافي للتحقيق (تتبع داخلي)."
+        },
+        {
+          "name": "InvestigationID",
+          "type": "text",
+          "description": "معرّف التحقيق المرتبط بالواقعة."
+        },
+        {
+          "name": "Last Update",
+          "type": "datetime",
+          "description": "تاريخ ووقت آخر تحديث للسجل."
+        },
+        {
+          "name": "latitude_deg",
+          "type": "number",
+          "description": "خط العرض للموقع المرتبط بالحادثة (للاستخدام في الخرائط)."
+        },
+        {
+          "name": "longitude_deg",
+          "type": "number",
+          "description": "خط الطول للموقع المرتبط بالحادثة."
+        },
+        {
+          "name": "Manager Notes",
+          "type": "text",
+          "description": "ملاحظات مدير القسم أو مدير المركز."
+        },
+        {
+          "name": "Respond to the investigation",
+          "type": "text",
+          "description": "وضع استجابة الموظف/القسم للتحقيق."
+        },
+        {
+          "name": "Shift",
+          "type": "text",
+          "description": "الوردية (A/B/C...)."
+        },
+        {
+          "name": "STA",
+          "type": "datetime",
+          "description": "وقت الوصول المجدول (Scheduled Time of Arrival)."
+        },
+        {
+          "name": "STD",
+          "type": "datetime",
+          "description": "وقت المغادرة المجدول."
+        },
+        {
+          "name": "Supervisor ID",
+          "type": "text",
+          "description": "رقم المشرف المسؤول المباشر."
+        },
+        {
+          "name": "Supervisor Name",
+          "type": "text",
+          "description": "اسم المشرف."
+        }
+      ],
+      "relationships": [
+        {
+          "to_table": "employee_master",
+          "type": "M:1",
+          "on": [
+            "Employee ID"
+          ],
+          "description": "ربط كل حادثة ببيانات الموظف الرئيسية."
+        },
+        {
+          "to_table": "operational_event",
+          "type": "M:1",
+          "on": [
+            "InvestigationID"
+          ],
+          "description": "ربط التحقيقات والأحداث التشغيلية بنفس InvestigationID."
+        }
+      ]
+    }
+  ],
+  "system_constants": {
+    "project_name": "NXS-URE Operational Excellence",
+    "final_otp": 0.9362,
+    "baseline_otp": 0.845,
+    "roi_percent": 1091.67,
+    "manpower_overtime_cap_hours": 10,
+    "asset_pm_overdue_days": 5,
+    "rca_code_ot_over_cap": "TC-OVT",
+    "rca_code_asset_delay_pm": "ASSET-PM-DUE",
+    "rca_code_manpower_absence": "TC-ABS",
+    "rca_code_fuel_ops": "FU-OPS",
+    "tactical_action_asset_lock": "سحب الوحدة فوراً من التخصيص ورفع تنبيه صيانة عاجل",
+    "tactical_action_manpower_critical": "إطلاق تنبيه حرج وتفعيل فريق الاحتياط (FRT Activation) فوراً",
+    "predicted_tat_avg_minutes": 43.8,
+    "tc_abs_vs_fu_ops_comparison": "المشاكل الناجمة عن غياب الموظفين (TC-ABS) كانت أكثر خطورة وتأثيراً من نقص الوقود (FU-OPS) وتتطلب خطة توظيف.",
+    "mgt_special_rules": {
+      "towing_transit_add_mins": 20,
+      "mgt_usa_long_haul_mins": 170,
+      "mgt_kan_special_mins": 120,
+      "mgt_all_usa_stations_mins": 120,
+      "mgt_ssh_security_mins": 75
+    },
+    "mgt_standards": [
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "DOM_DOM",
+        "station": "JED",
+        "transit_mgt_mins": 65,
+        "turnaround_mgt_mins": 70,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "INT_INT",
+        "station": "JED",
+        "transit_mgt_mins": 75,
+        "turnaround_mgt_mins": 80,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "DOM_INT",
+        "station": "JED",
+        "transit_mgt_mins": 55,
+        "turnaround_mgt_mins": 90,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "INT_DOM",
+        "station": "JED",
+        "transit_mgt_mins": 55,
+        "turnaround_mgt_mins": 95,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "DOM_DOM",
+        "station": "RUH",
+        "transit_mgt_mins": 65,
+        "turnaround_mgt_mins": 70,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "INT_INT",
+        "station": "RUH",
+        "transit_mgt_mins": 75,
+        "turnaround_mgt_mins": 80,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "DOM_INT",
+        "station": "RUH",
+        "transit_mgt_mins": 55,
+        "turnaround_mgt_mins": 90,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "INT_DOM",
+        "station": "RUH",
+        "transit_mgt_mins": 55,
+        "turnaround_mgt_mins": 95,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "DOM_DOM",
+        "station": "DMM/MED",
+        "transit_mgt_mins": 60,
+        "turnaround_mgt_mins": 65,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "INT_INT",
+        "station": "DMM/MED",
+        "transit_mgt_mins": 60,
+        "turnaround_mgt_mins": 75,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "DOM_INT",
+        "station": "DMM/MED",
+        "transit_mgt_mins": 40,
+        "turnaround_mgt_mins": 85,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "INT_DOM",
+        "station": "DMM/MED",
+        "transit_mgt_mins": 40,
+        "turnaround_mgt_mins": 85,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "DOM_DOM",
+        "station": "AHB/TUU",
+        "transit_mgt_mins": 55,
+        "turnaround_mgt_mins": 60,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "DOM_DOM",
+        "station": "OTHER_DOM_STN",
+        "transit_mgt_mins": 50,
+        "turnaround_mgt_mins": 60,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "INT_INT",
+        "station": "INT_STNS",
+        "transit_mgt_mins": 60,
+        "turnaround_mgt_mins": 75,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "INT_INT",
+        "station": "INT_STNS",
+        "transit_mgt_mins": 75,
+        "turnaround_mgt_mins": 100,
+        "is_security_alert": true
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "INT_INT",
+        "station": "LHR",
+        "transit_mgt_mins": 60,
+        "turnaround_mgt_mins": 100,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "INT_INT",
+        "station": "LONG_HAUL_STN",
+        "transit_mgt_mins": 75,
+        "turnaround_mgt_mins": 90,
+        "is_security_alert": true
+      },
+      {
+        "aircraft_type": "A330/B787-9",
+        "flight_type": "DOM_DOM",
+        "station": "JED/RUH",
+        "transit_mgt_mins": 60,
+        "turnaround_mgt_mins": 65,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A330/B787-9",
+        "flight_type": "INT_INT",
+        "station": "JED/RUH",
+        "transit_mgt_mins": 70,
+        "turnaround_mgt_mins": 70,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A330/B787-9",
+        "flight_type": "DOM_INT/INT_DOM",
+        "station": "JED/RUH",
+        "transit_mgt_mins": 45,
+        "turnaround_mgt_mins": 80,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A330/B787-9",
+        "flight_type": "DOM_DOM",
+        "station": "DMM/MED",
+        "transit_mgt_mins": 45,
+        "turnaround_mgt_mins": 60,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A330/B787-9",
+        "flight_type": "INT_INT",
+        "station": "DMM/MED",
+        "transit_mgt_mins": 45,
+        "turnaround_mgt_mins": 70,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A330/B787-9",
+        "flight_type": "DOM_INT/INT_DOM",
+        "station": "DMM/MED",
+        "transit_mgt_mins": 35,
+        "turnaround_mgt_mins": 75,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A330/B787-9",
+        "flight_type": "DOM_DOM",
+        "station": "AHB/TUU",
+        "transit_mgt_mins": 55,
+        "turnaround_mgt_mins": 60,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A330/B787-9",
+        "flight_type": "DOM_DOM",
+        "station": "OTHER_DOM_STN",
+        "transit_mgt_mins": 50,
+        "turnaround_mgt_mins": 60,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A330/B787-9",
+        "flight_type": "INT_INT",
+        "station": "INT_STNS",
+        "transit_mgt_mins": 60,
+        "turnaround_mgt_mins": 75,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A330/B787-9",
+        "flight_type": "INT_INT",
+        "station": "INT_STNS",
+        "transit_mgt_mins": 75,
+        "turnaround_mgt_mins": 90,
+        "is_security_alert": true
+      },
+      {
+        "aircraft_type": "A330/B787-9",
+        "flight_type": "INT_INT",
+        "station": "LHR",
+        "transit_mgt_mins": 60,
+        "turnaround_mgt_mins": 90,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A330/B787-9",
+        "flight_type": "INT_INT",
+        "station": "LONG_HAUL_STN",
+        "transit_mgt_mins": 75,
+        "turnaround_mgt_mins": 90,
+        "is_security_alert": true
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_type": "DOM_DOM",
+        "station": "JED/RUH",
+        "transit_mgt_mins": 40,
+        "turnaround_mgt_mins": 45,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_type": "INT_INT",
+        "station": "JED/RUH",
+        "transit_mgt_mins": 40,
+        "turnaround_mgt_mins": 50,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_type": "DOM_INT/INT_DOM",
+        "station": "JED/RUH",
+        "transit_mgt_mins": 30,
+        "turnaround_mgt_mins": 55,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_type": "DOM_DOM",
+        "station": "DMM/MED",
+        "transit_mgt_mins": 30,
+        "turnaround_mgt_mins": 40,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_type": "INT_INT",
+        "station": "DMM/MED",
+        "transit_mgt_mins": 30,
+        "turnaround_mgt_mins": 45,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_type": "DOM_INT/INT_DOM",
+        "station": "DMM/MED",
+        "transit_mgt_mins": 25,
+        "turnaround_mgt_mins": 50,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_type": "DOM_DOM",
+        "station": "AHB/TUU",
+        "transit_mgt_mins": 35,
+        "turnaround_mgt_mins": 40,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_type": "DOM_DOM",
+        "station": "OTHER_DOM_STN",
+        "transit_mgt_mins": 35,
+        "turnaround_mgt_mins": 40,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_type": "INT_INT",
+        "station": "INT_STNS",
+        "transit_mgt_mins": 60,
+        "turnaround_mgt_mins": 55,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_type": "INT_INT",
+        "station": "INT_STNS",
+        "transit_mgt_mins": 75,
+        "turnaround_mgt_mins": 65,
+        "is_security_alert": true
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_type": "INT_INT",
+        "station": "LHR",
+        "transit_mgt_mins": 60,
+        "turnaround_mgt_mins": 60,
+        "is_security_alert": false
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_type": "INT_INT",
+        "station": "LONG_HAUL_STN",
+        "transit_mgt_mins": 30,
+        "turnaround_mgt_mins": 60,
+        "is_security_alert": false
+      }
+    ]
+  },
+  "extra_schema_block": {
+    "version": "1.0",
+    "owner": "NXS • AirportOps",
+    "description": "Unified semantic schema for NXS AirportOps (employees, delays, absences, overtime, productivity, flights, operations) including Ground Handling Standards.",
+    "system_constants": {
+      "project_name": "NXS-URE Operational Excellence",
+      "final_otp": 0.9362,
+      "baseline_otp": 0.845,
+      "roi_percent": 1091.67,
+      "manpower_overtime_cap_hours": 10,
+      "asset_pm_overdue_days": 5,
+      "rca_code_ot_over_cap": "TC-OVT",
+      "rca_code_asset_delay_pm": "ASSET-PM-DUE",
+      "rca_code_manpower_absence": "TC-ABS",
+      "rca_code_fuel_ops": "FU-OPS",
+      "tactical_action_asset_lock": "سحب الوحدة فوراً من التخصيص ورفع تنبيه صيانة عاجل",
+      "tactical_action_manpower_critical": "إطلاق تنبيه حرج وتفعيل فريق الاحتياط (FRT Activation) فوراً",
+      "predicted_tat_avg_minutes": 43.8,
+      "tc_abs_vs_fu_ops_comparison": "المشاكل الناجمة عن غياب الموظفين (TC-ABS) كانت أكثر خطورة وتأثيراً من نقص الوقود (FU-OPS)"
+    },
+    "mgt_general_assumptions": {
+      "description": "المعايير والافتراضات العامة التي تطبق على جميع أوقات المناولة الأرضية (MGT).",
+      "load_factor_standard": 0.5,
+      "max_load_factor_turnaround": 1.0,
+      "critical_resource_standards": [
+        {
+          "aircraft_group": "B777/B787-10",
+          "activity": "Cabin Cleaning",
+          "resource": "Porter",
+          "count": 20,
+          "flight_type": "DOM_DOM (Transit/Turnaround)"
+        },
+        {
+          "aircraft_group": "B777/B787-10",
+          "activity": "Galley Service",
+          "resource": "Catering Truck",
+          "count": 2,
+          "flight_type": "DOM_DOM (Transit/Turnaround)"
+        },
+        {
+          "aircraft_group": "A330/B787-9",
+          "activity": "Cabin Cleaning",
+          "resource": "Porter",
+          "count": 15,
+          "flight_type": "DOM_DOM (Transit)"
+        },
+        {
+          "aircraft_group": "A330/B787-9",
+          "activity": "Galley Service",
+          "resource": "Catering Truck",
+          "count": 2,
+          "flight_type": "DOM_DOM (Transit)"
+        },
+        {
+          "aircraft_group": "A321/A320",
+          "activity": "Cabin Cleaning",
+          "resource": "Porter",
+          "count": 8,
+          "flight_type": "DOM_DOM (Transit/Turnaround)"
+        },
+        {
+          "aircraft_group": "A321/A320",
+          "activity": "Galley Service",
+          "resource": "Catering Truck",
+          "count": 1,
+          "flight_type": "DOM_DOM (Transit/Turnaround)"
+        },
+        {
+          "aircraft_group": "B757",
+          "activity": "ACFT Cleaning",
+          "resource": "Porter",
+          "count": 5,
+          "flight_type": "DOM_DOM (Transit)"
+        }
+      ]
+    },
+    "mgt_special_rules": [
+      {
+        "rule_name": "USA Flights (B777/B787)",
+        "flight_route": "DOM-INT/INT-DOM",
+        "time_override_mins": 105,
+        "condition": "Destination/Origin is USA",
+        "base_aircraft": [
+          "B777-368/B787-10"
+        ],
+        "base_mgt_type": "Turnaround"
+      },
+      {
+        "rule_name": "USA Flights (A330)",
+        "flight_route": "DOM-INT/INT-DOM",
+        "time_override_mins": 90,
+        "condition": "Destination/Origin is USA",
+        "base_aircraft": [
+          "A330/B787-9"
+        ],
+        "base_mgt_type": "Turnaround"
+      },
+      {
+        "rule_name": "Pushback / Towing",
+        "activity": "Pushback / Towing",
+        "time_mins": 20,
+        "condition": "If required due to stand position",
+        "base_aircraft": [
+          "ALL"
+        ]
+      },
+      {
+        "rule_name": "Security Check (Intl-Intl)",
+        "activity": "Full Cabin Security",
+        "time_mins": 75,
+        "condition": "Specific Intl-Intl routes",
+        "base_aircraft": [
+          "ALL"
+        ]
+      }
+    ],
+    "mgt_standards": [
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "DOM-DOM",
+        "mgt_type": "Transit",
+        "total_mgt_mins": 60,
+        "load_factor": 0.5
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "INTL-DOM",
+        "mgt_type": "Transit",
+        "total_mgt_mins": 40,
+        "load_factor": 0.5
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "DOM-DOM",
+        "mgt_type": "Turnaround",
+        "total_mgt_mins": 65,
+        "load_factor": 1.0
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "INTL-INTL",
+        "mgt_type": "Turnaround",
+        "total_mgt_mins": 90,
+        "load_factor": 1.0
+      },
+      {
+        "aircraft_type": "A330/B787-9",
+        "flight_type": "DOM-DOM",
+        "mgt_type": "Transit",
+        "total_mgt_mins": 45,
+        "load_factor": 0.5
+      },
+      {
+        "aircraft_type": "A330/B787-9",
+        "flight_type": "INTL-DOM",
+        "mgt_type": "Transit",
+        "total_mgt_mins": 35,
+        "load_factor": 0.5
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_type": "DOM-DOM",
+        "mgt_type": "Transit",
+        "total_mgt_mins": 30,
+        "load_factor": 0.5
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_type": "DOM-INTL",
+        "mgt_type": "Turnaround",
+        "total_mgt_mins": 45,
+        "load_factor": 1.0
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_type": "INTL-INTL",
+        "mgt_type": "Turnaround",
+        "total_mgt_mins": 55,
+        "load_factor": 1.0
+      },
+      {
+        "aircraft_type": "B757",
+        "flight_type": "DOM-DOM",
+        "mgt_type": "Transit",
+        "total_mgt_mins": 39,
+        "load_factor": 0.5
+      },
+      {
+        "aircraft_type": "B777-368/B787-10",
+        "flight_type": "Mixed",
+        "mgt_type": "Min Ground Time",
+        "total_mgt_mins": 85,
+        "load_factor": 1.0
+      }
+    ],
+    "mgt_activity_breakdown": [
+      {
+        "aircraft_type": "B777/B787-10",
+        "flight_route": "DOM-DOM",
+        "activity_name": "Blocks IN / Door Opening",
+        "time_mins": 1,
+        "mgt_type": "Transit"
+      },
+      {
+        "aircraft_type": "B777/B787-10",
+        "flight_route": "DOM-DOM",
+        "activity_name": "PAX deplaning",
+        "time_mins": 10,
+        "mgt_type": "Transit"
+      },
+      {
+        "aircraft_type": "B777/B787-10",
+        "flight_route": "DOM-DOM",
+        "activity_name": "Cabin Cleaning",
+        "time_mins": 15,
+        "mgt_type": "Transit",
+        "required_resources": [
+          {
+            "resource": "Porter",
+            "count": 20
+          }
+        ]
+      },
+      {
+        "aircraft_type": "B777/B787-10",
+        "flight_route": "DOM-DOM",
+        "activity_name": "Galley Service",
+        "time_mins": 20,
+        "mgt_type": "Transit",
+        "required_resources": [
+          {
+            "resource": "Catering Truck",
+            "count": 2
+          }
+        ]
+      },
+      {
+        "aircraft_type": "B777/B787-10",
+        "flight_route": "DOM-DOM",
+        "activity_name": "Passenger Enplaning",
+        "time_mins": 25,
+        "mgt_type": "Transit"
+      },
+      {
+        "aircraft_type": "B777/B787-10",
+        "flight_route": "DOM-DOM",
+        "activity_name": "FNLZTN/ Door CLSD",
+        "time_mins": 3,
+        "mgt_type": "Transit"
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_route": "DOM-DOM",
+        "activity_name": "PAX deplaning",
+        "time_mins": 4,
+        "mgt_type": "Transit"
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_route": "DOM-DOM",
+        "activity_name": "Cabin Cleaning",
+        "time_mins": 10,
+        "mgt_type": "Transit",
+        "required_resources": [
+          {
+            "resource": "Porter",
+            "count": 8
+          }
+        ]
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_route": "DOM-DOM",
+        "activity_name": "Galley Service",
+        "time_mins": 14,
+        "mgt_type": "Transit",
+        "required_resources": [
+          {
+            "resource": "Catering Truck",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_route": "DOM-DOM",
+        "activity_name": "Passenger Enplaning",
+        "time_mins": 7,
+        "mgt_type": "Transit"
+      },
+      {
+        "aircraft_type": "B757",
+        "flight_route": "DOM-DOM",
+        "activity_name": "PAX Disembarkation",
+        "time_mins": 7,
+        "mgt_type": "Transit"
+      },
+      {
+        "aircraft_type": "B757",
+        "flight_route": "DOM-DOM",
+        "activity_name": "ACFT Cleaning",
+        "time_mins": 5,
+        "mgt_type": "Transit",
+        "required_resources": [
+          {
+            "resource": "Porter",
+            "count": 5
+          }
+        ]
+      },
+      {
+        "aircraft_type": "B757",
+        "flight_route": "DOM-DOM",
+        "activity_name": "Catering Services",
+        "time_mins": 12,
+        "mgt_type": "Transit"
+      },
+      {
+        "aircraft_type": "B757",
+        "flight_route": "DOM-DOM",
+        "activity_name": "PAX Embarkation",
+        "time_mins": 15,
+        "mgt_type": "Transit"
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_route": "DOM-DOM",
+        "activity_name": "PAX deplaning",
+        "time_mins": 8,
+        "mgt_type": "Turnaround"
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_route": "DOM-DOM",
+        "activity_name": "Cabin Cleaning",
+        "time_mins": 10,
+        "mgt_type": "Turnaround",
+        "required_resources": [
+          {
+            "resource": "Porter",
+            "count": 8
+          }
+        ]
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_route": "DOM-DOM",
+        "activity_name": "Galley Services",
+        "time_mins": 10,
+        "mgt_type": "Turnaround",
+        "required_resources": [
+          {
+            "resource": "Catering Truck",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_route": "DOM-DOM",
+        "activity_name": "Cabin Security",
+        "time_mins": 3,
+        "mgt_type": "Turnaround"
+      },
+      {
+        "aircraft_type": "A321/A320",
+        "flight_route": "DOM-DOM",
+        "activity_name": "Passenger Enplaning",
+        "time_mins": 14,
+        "mgt_type": "Turnaround"
+      },
+      {
+        "aircraft_type": "ALL",
+        "flight_route": "ALL",
+        "activity_name": "Blocks IN / Door Opening",
+        "time_mins": 1,
+        "mgt_type": "ALL"
+      },
+      {
+        "aircraft_type": "ALL",
+        "flight_route": "ALL",
+        "activity_name": "FNLZTN/ Door CLSD",
+        "time_mins": 3,
+        "mgt_type": "ALL"
+      },
+      {
+        "aircraft_type": "ALL",
+        "flight_route": "ALL",
+        "activity_name": "BLOCKS OUT",
+        "time_mins": 1,
+        "mgt_type": "ALL"
+      }
+    ],
+    "tables": [
+      {
+        "name": "dep_flight_delay",
+        "business_name": "DEP Flight Delay (Departure Control Events)",
+        "category": "Flight Ops",
+        "description": "سجل حوادث وتأخيرات الرحلات المرتبطة بعمليات التحكم والإشراف والموظفين.",
+        "grain": "صف واحد لكل حادث/تأخير مسجل، مرتبط غالباً بموظف أو حدث محدد.",
+        "key_columns": [
+          "Title"
+        ],
+        "time_columns": [
+          "Date",
+          "STA",
+          "ATA",
+          "STD",
+          "ATD"
+        ],
+        "columns": [
+          {
+            "name": "Administrative procedure",
+            "type": "text",
+            "description": "الإجراء الإداري المتبع."
+          },
+          {
+            "name": "Airlines",
+            "type": "text",
+            "description": "شركة الطيران المعنية."
+          },
+          {
+            "name": "Arrival Destination",
+            "type": "text",
+            "description": "مطار الوصول إن وجدت."
+          },
+          {
+            "name": "Arrival Flight Number",
+            "type": "text",
+            "description": "رقم رحلة الوصول إن وجدت."
+          },
+          {
+            "name": "Arrival Violations",
+            "type": "text",
+            "description": "مخالفات حدثت أثناء عملية الوصول."
+          },
+          {
+            "name": "ATA",
+            "type": "datetime",
+            "description": "وقت الوصول الفعلي (Actual Time of Arrival)."
+          },
+          {
+            "name": "ATD",
+            "type": "datetime",
+            "description": "وقت المغادرة الفعلي."
+          },
+          {
+            "name": "Consent...",
+            "type": "text",
+            "description": "تفاصيل إضافية حول موافقة/إقرار الموظف."
+          },
+          {
+            "name": "Control ID/Name",
+            "type": "text",
+            "description": "هوية/اسم موظف التحكم."
+          },
+          {
+            "name": "Current reminder",
+            "type": "text",
+            "description": "تذكير/متابعة حالية للتحقيق."
+          },
+          {
+            "name": "Date",
+            "type": "date",
+            "description": "تاريخ الحادث."
+          },
+          {
+            "name": "Department",
+            "type": "text",
+            "description": "القسم المسؤول أو المتضرر."
+          },
+          {
+            "name": "Departure Destination",
+            "type": "text",
+            "description": "مطار المغادرة إن وجدت."
+          },
+          {
+            "name": "Departure Flight Number",
+            "type": "text",
+            "description": "رقم رحلة المغادرة إن وجدت."
+          },
+          {
+            "name": "Departure Violations",
+            "type": "text",
+            "description": "مخالفات حدثت أثناء عملية المغادرة."
+          },
+          {
+            "name": "Description of Incident",
+            "type": "text",
+            "description": "وصف مفصل للحادث أو المشكلة."
+          },
+          {
+            "name": "Duty Manager ID/Name",
+            "type": "text",
+            "description": "هوية/اسم مدير المناوبة."
+          },
+          {
+            "name": "Employee ID/Name",
+            "type": "text",
+            "description": "هوية/اسم الموظف المتورط/المتسبب في الحادث."
+          },
+          {
+            "name": "Failure Impact",
+            "type": "text",
+            "description": "تأثير الحادث على العمليات."
+          },
+          {
+            "name": "Final action",
+            "type": "text",
+            "description": "الإجراء النهائي المتخذ (عقوبة، تنبيه، إلخ)."
+          },
+          {
+            "name": "Flight Category",
+            "type": "text",
+            "description": "فئة الرحلة (محلي/دولي)."
+          },
+          {
+            "name": "Flight Direction",
+            "type": "text",
+            "description": "اتجاه الرحلة (قدوم/مغادرة)."
+          },
+          {
+            "name": "Gate",
+            "type": "text",
+            "description": "بوابة الطائرة."
+          },
+          {
+            "name": "Investigation status",
+            "type": "text",
+            "description": "حالة التحقيق الأولي."
+          },
+          {
+            "name": "Investigation status2",
+            "type": "text",
+            "description": "حالة التحقيق النهائية."
+          },
+          {
+            "name": "InvestigationID",
+            "type": "text",
+            "description": "رقم/كود التحقيق."
+          },
+          {
+            "name": "Item Type",
+            "type": "text",
+            "description": "نوع العنصر في القائمة."
+          },
+          {
+            "name": "Last Update",
+            "type": "datetime",
+            "description": "تاريخ آخر تحديث للسجل."
+          },
+          {
+            "name": "latitude_deg",
+            "type": "float",
+            "description": "الإحداثي الجغرافي لخط العرض لموقع الحادث."
+          },
+          {
+            "name": "longitude_deg",
+            "type": "float",
+            "description": "الإحداثي الجغرافي لخط الطول لموقع الحادث."
+          },
+          {
+            "name": "Manager Notes",
+            "type": "text",
+            "description": "ملاحظات المدير حول الحادث أو الموظف."
+          },
+          {
+            "name": "Path",
+            "type": "text",
+            "description": "المسار داخل نظام الحفظ."
+          },
+          {
+            "name": "Respond...",
+            "type": "text",
+            "description": "رد الإدارة على الحادث."
+          },
+          {
+            "name": "Shift",
+            "type": "text",
+            "description": "الوردية."
+          },
+          {
+            "name": "STA",
+            "type": "datetime",
+            "description": "وقت الوصول المجدول (Scheduled Time of Arrival)."
+          },
+          {
+            "name": "STD",
+            "type": "datetime",
+            "description": "وقت المغادرة المجدول."
+          },
+          {
+            "name": "Supervisor ID/Name",
+            "type": "text",
+            "description": "هوية/اسم المشرف."
+          },
+          {
+            "name": "Title",
+            "type": "text",
+            "description": "عنوان الحادث/السجل (المفتاح الأساسي)."
+          }
+        ]
+      },
+      {
+        "name": "employee_absence",
+        "business_name": "Employee Absence",
+        "category": "HR",
+        "description": "سجلات غياب الموظفين غير المصرح به.",
+        "grain": "صف واحد لكل حالة غياب.",
+        "key_columns": [
+          "Employee ID",
+          "Date"
+        ],
+        "time_columns": [
+          "Date",
+          "Last Update"
+        ],
+        "columns": [
+          {
+            "name": "Absence Notification Status",
+            "type": "text",
+            "description": "حالة إخطار الغياب."
+          },
+          {
+            "name": "Date",
+            "type": "date",
+            "description": "تاريخ الغياب."
+          },
+          {
+            "name": "Department",
+            "type": "text",
+            "description": "القسم."
+          },
+          {
+            "name": "Employee ID",
+            "type": "text",
+            "description": "الرقم الوظيفي."
+          },
+          {
+            "name": "Employee Name",
+            "type": "text",
+            "description": "اسم الموظف."
+          },
+          {
+            "name": "Investigation status",
+            "type": "text",
+            "description": "حالة التحقيق."
+          },
+          {
+            "name": "InvestigationID",
+            "type": "text",
+            "description": "رقم/كود التحقيق."
+          },
+          {
+            "name": "Last Update",
+            "type": "datetime",
+            "description": "تاريخ آخر تحديث للسجل."
+          },
+          {
+            "name": "Manager Notes",
+            "type": "text",
+            "description": "ملاحظات المدير."
+          },
+          {
+            "name": "Shift",
+            "type": "text",
+            "description": "الوردية."
+          },
+          {
+            "name": "Title",
+            "type": "text",
+            "description": "عنوان السجل."
+          }
+        ]
+      },
+      {
+        "name": "employee_delay",
+        "business_name": "Employee Delay (Tardy)",
+        "category": "HR",
+        "description": "سجلات تأخير الموظفين عن الحضور للدوام.",
+        "grain": "صف واحد لكل حالة تأخير.",
+        "key_columns": [
+          "Employee ID",
+          "Date"
+        ],
+        "time_columns": [
+          "Date"
+        ],
+        "columns": [
+          {
+            "name": "Date",
+            "type": "date",
+            "description": "تاريخ التأخير."
+          },
+          {
+            "name": "Delay Minutes",
+            "type": "integer",
+            "description": "دقائق التأخير."
+          },
+          {
+            "name": "Delay Notification Status",
+            "type": "text",
+            "description": "حالة إخطار التأخير."
+          },
+          {
+            "name": "Department",
+            "type": "text",
+            "description": "القسم."
+          },
+          {
+            "name": "Employee ID",
+            "type": "text",
+            "description": "الرقم الوظيفي."
+          },
+          {
+            "name": "Employee Name",
+            "type": "text",
+            "description": "اسم الموظف."
+          },
+          {
+            "name": "Investigation status",
+            "type": "text",
+            "description": "حالة التحقيق."
+          },
+          {
+            "name": "InvestigationID",
+            "type": "text",
+            "description": "رقم/كود التحقيق."
+          },
+          {
+            "name": "Manager Notes",
+            "type": "text",
+            "description": "ملاحظات المدير."
+          },
+          {
+            "name": "Reason for Delay",
+            "type": "text",
+            "description": "السبب الذي قدمه الموظف للتأخير."
+          },
+          {
+            "name": "Shift",
+            "type": "text",
+            "description": "الوردية."
+          },
+          {
+            "name": "Title",
+            "type": "text",
+            "description": "عنوان السجل."
+          }
+        ]
+      },
+      {
+        "name": "employee_master",
+        "business_name": "Employee Master",
+        "category": "HR",
+        "description": "الجدول الرئيسي لجميع بيانات الموظفين الثابتة (الهوية، الجنس، الجنسية، القسم، الدرجة، التعيين، الحركة الوظيفية، سبب الخروج).",
+        "grain": "صف واحد لكل موظف لكل Record Date (آخر نسخة تعتبر الحالة الحالية).",
+        "key_columns": [
+          "Employee ID"
+        ],
+        "time_columns": [
+          "Record Date",
+          "Hiring Date",
+          "Action Effective Date"
+        ],
+        "columns": [
+          {
+            "name": "Action Effective Date",
+            "type": "date",
+            "description": "تاريخ سريان الإجراء الوظيفي."
+          },
+          {
+            "name": "Actual Role",
+            "type": "text",
+            "description": "الدور الفعلي/التشغيلي في الفريق."
+          },
+          {
+            "name": "Current Department",
+            "type": "text",
+            "description": "القسم الحالي (نسخة إضافية للدقة)."
+          },
+          {
+            "name": "Department",
+            "type": "text",
+            "description": "القسم الحالي للموظف."
+          },
+          {
+            "name": "Employee ID",
+            "type": "text",
+            "description": "الرقم الوظيفي الفريد للموظف (المفتاح الأساسي المنطقي)."
+          },
+          {
+            "name": "Employee Name",
+            "type": "text",
+            "description": "الاسم الكامل للموظف."
+          },
+          {
+            "name": "Employment Action Type",
+            "type": "text",
+            "description": "نوع الإجراء الوظيفي الأخير (نقل، ترقية، إنهاء خدمة)."
+          },
+          {
+            "name": "Exit Reason",
+            "type": "text",
+            "description": "سبب الخروج من الخدمة، إن وجد."
+          },
+          {
+            "name": "Gender",
+            "type": "text",
+            "description": "جنس الموظف (ذكر / أنثى)."
+          },
+          {
+            "name": "Grade",
+            "type": "text",
+            "description": "الدرجة الوظيفية."
+          },
+          {
+            "name": "Hiring Date",
+            "type": "date",
+            "description": "تاريخ التعيين."
+          },
+          {
+            "name": "Job Title",
+            "type": "text",
+            "description": "المسمى الوظيفي الرسمي."
+          },
+          {
+            "name": "Nationality",
+            "type": "text",
+            "description": "جنسية الموظف."
+          },
+          {
+            "name": "Note",
+            "type": "text",
+            "description": "ملاحظات إدارية إضافية."
+          },
+          {
+            "name": "Previous Department",
+            "type": "text",
+            "description": "القسم السابق للموظف."
+          },
+          {
+            "name": "Record Date",
+            "type": "date",
+            "description": "تاريخ تسجيل أو تحديث سجل الموظف."
+          }
+        ]
+      },
+      {
+        "name": "employee_overtime",
+        "business_name": "Employee Overtime",
+        "category": "HR",
+        "description": "سجلات العمل الإضافي للموظفين.",
+        "grain": "صف واحد لكل تكليف بالعمل الإضافي.",
+        "key_columns": [
+          "Employee ID",
+          "Notification Date/Time"
+        ],
+        "time_columns": [
+          "Notification Date/Time"
+        ],
+        "columns": [
+          {
+            "name": "Assignment Date/Type/Days",
+            "type": "text",
+            "description": "تفاصيل تاريخ ونوع الأيام المخصصة للعمل الإضافي."
+          },
+          {
+            "name": "Assignment Reason",
+            "type": "text",
+            "description": "سبب التكليف بالعمل الإضافي."
+          },
+          {
+            "name": "Department",
+            "type": "text",
+            "description": "القسم."
+          },
+          {
+            "name": "Duty Manager ID/Name",
+            "type": "text",
+            "description": "مدير المناوبة الذي وافق على العمل الإضافي."
+          },
+          {
+            "name": "Employee ID",
+            "type": "text",
+            "description": "الرقم الوظيفي."
+          },
+          {
+            "name": "Employee Name",
+            "type": "text",
+            "description": "اسم الموظف."
+          },
+          {
+            "name": "Item Type",
+            "type": "text",
+            "description": "نوع العنصر في القائمة."
+          },
+          {
+            "name": "Notes",
+            "type": "text",
+            "description": "ملاحظات إضافية."
+          },
+          {
+            "name": "Notification Date/Time",
+            "type": "datetime",
+            "description": "تاريخ ووقت إشعار العمل الإضافي."
+          },
+          {
+            "name": "Path",
+            "type": "text",
+            "description": "المسار داخل نظام الحفظ."
+          },
+          {
+            "name": "Shift",
+            "type": "text",
+            "description": "الوردية التي تم فيها العمل الإضافي."
+          },
+          {
+            "name": "Title",
+            "type": "text",
+            "description": "عنوان السجل."
+          },
+          {
+            "name": "Total Hours",
+            "type": "float",
+            "description": "إجمالي ساعات العمل الإضافي."
+          }
+        ]
+      },
+      {
+        "name": "employee_sick_leave",
+        "business_name": "Employee Sick Leave",
+        "category": "HR",
+        "description": "سجلات الإجازات المرضية للموظفين.",
+        "grain": "صف واحد لكل إجازة مرضية.",
+        "key_columns": [
+          "Employee ID",
+          "Sick leave start/end date"
+        ],
+        "time_columns": [
+          "Date",
+          "Sick leave start/end date"
+        ],
+        "columns": [
+          {
+            "name": "Date",
+            "type": "date",
+            "description": "تاريخ تسجيل السجل."
+          },
+          {
+            "name": "Department",
+            "type": "text",
+            "description": "القسم."
+          },
+          {
+            "name": "Employee ID",
+            "type": "text",
+            "description": "الرقم الوظيفي."
+          },
+          {
+            "name": "Employee Name",
+            "type": "text",
+            "description": "اسم الموظف."
+          },
+          {
+            "name": "Shift",
+            "type": "text",
+            "description": "الوردية."
+          },
+          {
+            "name": "Sick leave start/end date",
+            "type": "date",
+            "description": "تاريخ بداية ونهاية الإجازة المرضية."
+          },
+          {
+            "name": "Title",
+            "type": "text",
+            "description": "عنوان السجل."
+          }
+        ]
+      },
+      {
+        "name": "operational_event",
+        "business_name": "Operational Event & Disciplinary Action",
+        "category": "Operations",
+        "description": "سجلات الأحداث التشغيلية والإجراءات التأديبية المرتبطة بالموظفين.",
+        "grain": "صف واحد لكل حدث تشغيلي/إجراء تأديبي.",
+        "key_columns": [
+          "Employee ID",
+          "Event Date"
+        ],
+        "time_columns": [
+          "Event Date"
+        ],
+        "columns": [
+          {
+            "name": "Department",
+            "type": "text",
+            "description": "القسم."
+          },
+          {
+            "name": "Disciplinary Action",
+            "type": "text",
+            "description": "الإجراء التأديبي المتخذ."
+          },
+          {
+            "name": "Employee ID",
+            "type": "text",
+            "description": "الرقم الوظيفي."
+          },
+          {
+            "name": "Employee Name",
+            "type": "text",
+            "description": "اسم الموظف."
+          },
+          {
+            "name": "Event Date",
+            "type": "date",
+            "description": "تاريخ وقوع الحدث."
+          },
+          {
+            "name": "Event Type",
+            "type": "text",
+            "description": "نوع الحدث (إصابة، حادث تشغيلي، مخالفة إجراءات)."
+          },
+          {
+            "name": "Investigation status",
+            "type": "text",
+            "description": "حالة التحقيق."
+          },
+          {
+            "name": "InvestigationID",
+            "type": "text",
+            "description": "رقم/كود التحقيق."
+          },
+          {
+            "name": "Manager Notes",
+            "type": "text",
+            "description": "ملاحظات المدير."
+          },
+          {
+            "name": "Shift",
+            "type": "text",
+            "description": "الوردية."
+          },
+          {
+            "name": "Title",
+            "type": "text",
+            "description": "عنوان السجل."
+          }
+        ]
+      },
+      {
+        "name": "sgs_flight_delay",
+        "business_name": "SGS Flight Delay (Service Ground Support)",
+        "category": "Flight Ops",
+        "description": "تأخيرات الرحلات على مستوى المحطة ومزود الخدمة الأرضية.",
+        "grain": "صف واحد لكل تأخير رحلة مسجل.",
+        "key_columns": [
+          "id"
+        ],
+        "time_columns": [
+          "Date",
+          "STD",
+          "ATD"
+        ],
+        "columns": [
+          {
+            "name": "Airlines",
+            "type": "text",
+            "description": "شركة الطيران."
+          },
+          {
+            "name": "ATD",
+            "type": "datetime",
+            "description": "وقت المغادرة الفعلي (Actual Time of Departure)."
+          },
+          {
+            "name": "Date",
+            "type": "date",
+            "description": "تاريخ الرحلة."
+          },
+          {
+            "name": "Delay Code",
+            "type": "text",
+            "description": "كود التأخير وفقاً لـ IATA أو نظام الشركة."
+          },
+          {
+            "name": "Destination",
+            "type": "text",
+            "description": "وجهة الرحلة."
+          },
+          {
+            "name": "Flight Category",
+            "type": "text",
+            "description": "فئة الرحلة (محلي، دولي)."
+          },
+          {
+            "name": "Flight Number",
+            "type": "text",
+            "description": "رقم الرحلة (Arrival/Departure)."
+          },
+          {
+            "name": "Gate",
+            "type": "text",
+            "description": "بوابة الطائرة."
+          },
+          {
+            "name": "id",
+            "type": "integer",
+            "description": "مفتاح أساسي فريد."
+          },
+          {
+            "name": "Note",
+            "type": "text",
+            "description": "ملاحظات حول التأخير."
+          },
+          {
+            "name": "Shift",
+            "type": "text",
+            "description": "الوردية (صباح، مساء، ليل)."
+          },
+          {
+            "name": "STD",
+            "type": "datetime",
+            "description": "وقت المغادرة المجدول (Scheduled Time of Departure)."
+          }
+        ]
+      },
+      {
+        "name": "shift_report",
+        "business_name": "Shift Operational Report",
+        "category": "Operations",
+        "description": "تقارير الوردية التشغيلية (المناوبون، إحصائيات الرحلات، تعليقات الأقسام).",
+        "grain": "صف واحد لكل تقرير وردية في تاريخ محدد.",
+        "key_columns": [
+          "Date",
+          "Shift",
+          "Department"
+        ],
+        "time_columns": [
+          "Date"
+        ],
+        "columns": [
+          {
+            "name": "Arrivals/Departures (Domestic/Intl)",
+            "type": "text",
+            "description": "إحصائيات رحلات الوصول/المغادرة (محلي/دولي)."
+          },
+          {
+            "name": "Cars In/Out Service",
+            "type": "text",
+            "description": "حالة مركبات القسم (خارج/داخل الخدمة)."
+          },
+          {
+            "name": "Comments (Domestic/Intl/All Halls)",
+            "type": "text",
+            "description": "تعليقات وملاحظات عامة من مدراء المناوبة."
+          },
+          {
+            "name": "Control 1/2 ID/Name/Start/End",
+            "type": "text",
+            "description": "هوية/اسم موظفي التحكم وأوقات بدء/إنهاء دوامهم."
+          },
+          {
+            "name": "Date",
+            "type": "date",
+            "description": "تاريخ الوردية."
+          },
+          {
+            "name": "Delayed Arrivals/Departures",
+            "type": "text",
+            "description": "إحصائيات الرحلات المتأخرة (عددها وأسبابها)."
+          },
+          {
+            "name": "Department",
+            "type": "text",
+            "description": "القسم."
+          },
+          {
+            "name": "Duty Manager Domestic/Intl/All Halls ID/Name",
+            "type": "text",
+            "description": "هوية/اسم مدراء المناوبة للمحلي/الدولي/جميع القاعات."
+          },
+          {
+            "name": "No Show",
+            "type": "integer",
+            "description": "عدد الموظفين الغائبين عن الوردية."
+          },
+          {
+            "name": "On Duty",
+            "type": "integer",
+            "description": "عدد الموظفين المتواجدين في الوردية."
+          },
+          {
+            "name": "Shift",
+            "type": "text",
+            "description": "الوردية (A, B, C)."
+          },
+          {
+            "name": "Supervisor Domestic/Intl/All Halls ID/Name",
+            "type": "text",
+            "description": "هوية/اسم المشرفين للمحلي/الدولي/جميع القاعات."
+          },
+          {
+            "name": "Title",
+            "type": "text",
+            "description": "عنوان التقرير."
+          },
+          {
+            "name": "Wireless Devices In/Out Service",
+            "type": "text",
+            "description": "حالة الأجهزة اللاسلكية/الطرفية."
+          }
+        ]
+      }
+    ]
+  },
+  "ai_prompts": {
+    "prompt_classifier": {
+      "role": "أنت نظام TCC AI الذكي. مهمتك هي تحليل سؤال المستخدم واستخراج نية البحث والفلاتر بدقة في مخرج JSON.",
+      "intents_guide": [
+        "employee_investigation: الاستعلام عن سجل موظف (غياب، تأخير، عمل إضافي، إجراءات تأديبية).",
+        "flight_analysis: تحليل تأخيرات رحلة أو شركة طيران محددة.",
+        "shift_stats: الإبلاغ عن أداء الوردية والمناوبين والمشاكل العامة.",
+        "mgt_compliance: الاستعلام عن **وقت المناولة الأرضية (MGT)**، ومقارنته بمعيار نوع الطائرة/الرحلة (B777/A320/USA).",
+        "resource_requirement: الاستعلام عن الموارد المطلوبة (Porters/Trucks) لرحلة محددة.",
+        "free_talk: للدردشة العامة أو الأسئلة التي لا تتطلب بيانات."
+      ],
+      "output_format": {
+        "intent": "نوع_البحث",
+        "filters": {
+          "employee_id": "...",
+          "flight_number": "...",
+          "airline": "...",
+          "department": "...",
+          "aircraft_type": "...",
+          "date_from": "...",
+          "date_to": "..."
+        }
+      }
+    }
+  },
+  "traffic_control_center": {
+    "department_name": "Traffic Control Center (TCC)",
+    "responsibility_codes": [
+      {
+        "code": "15I",
+        "sections": [
+          "TCC",
+          "FIC Saudia",
+          "FIC Nas"
+        ],
+        "description_ar": "تأخيرات ناتجة عن عدم كفاءة/تأخير في خدمات التحكم المركزي أو معلومات الطيران."
+      },
+      {
+        "code": "15F",
+        "sections": [
+          "LC Saudia",
+          "LC Foreign"
+        ],
+        "description_ar": "تأخيرات ناتجة عن مشكلات في التنسيق/التعامل مع شركات الطيران (Load Control)."
+      }
+    ],
+    "defense_priority": "High - Seek Root Cause outside TCC's direct control or mitigate time."
+  },
+  "delay_codes_reference": [
+    {
+      "code": "15A",
+      "airline": "SV",
+      "description_en": "LATE PASSENGER BOARDING",
+      "description_ar": "تأخر في صعود الركاب للطائرة (عادةً مسؤولية الناقل)"
+    },
+    {
+      "code": "14A",
+      "airline": "SV",
+      "description_en": "ACCEPTANCE OF PASSENGER OVER AIRCRAFT SEAT CAPACITY...",
+      "description_ar": "قبول ركاب فوق سعة الطائرة (عادةً مسؤولية الناقل)"
+    },
+    {
+      "code": "15PH",
+      "airline": "F3",
+      "description_en": "Boarding Discrepancies and paging, missing checked-in passenger.",
+      "description_ar": "تناقضات في الصعود، نداء، أو فقدان راكب مسجل (مسؤولية الناقل)"
+    },
+    {
+      "code": "15",
+      "airline": "XY",
+      "description_en": "Boarding",
+      "description_ar": "تأخير في عملية الصعود (مسؤولية الناقل)"
+    },
+    {
+      "code": "31GD",
+      "airline": "F3",
+      "description_en": "Aircraft Documentation Late/inaccurate...",
+      "description_ar": "تأخر/عدم دقة في وثائق الطائرة (الوزن والتوازن، البيان العام، قائمة الركاب)."
+    },
+    {
+      "code": "15I",
+      "airline": "TCC",
+      "description_en": "TCC/FIC Delay",
+      "description_ar": "تأخير ناتج عن مركز التحكم أو معلومات الطيران."
+    },
+    {
+      "code": "15F",
+      "airline": "TCC",
+      "description_en": "Load Control Delay",
+      "description_ar": "تأخير ناتج عن مشكلات التحكم بالحمولة (Load Control)."
+    }
+  ]
+}

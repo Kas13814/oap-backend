@@ -1,0 +1,316 @@
+{
+  "version": 1,
+  "metrics": [
+    {
+      "id": "INCIDENT_COUNT_PER_EMPLOYEE",
+      "name_en": "Number of TCC delay incidents per employee",
+      "name_ar": "عدد حوادث التأخير المسجلة على الموظف (TCC)",
+      "entity": "employee",
+      "grain": [
+        "employee_id"
+      ],
+      "unit": "count",
+      "source": {
+        "type": "view",
+        "name": "employee_flight_delay_link_view",
+        "column": "incident_id"
+      },
+      "expression_sql": "count(distinct incident_id)",
+      "description_en": "Number of flight delay incidents where the employee is involved",
+      "description_ar": "عدد حوادث تأخير الرحلات التي كان الموظف طرفًا فيها",
+      "synonyms_en": [
+        "incident count",
+        "flight delay cases"
+      ],
+      "synonyms_ar": [
+        "عدد الحوادث",
+        "حالات التأخير على الموظف"
+      ]
+    },
+    {
+      "id": "TOTAL_ABSENCE_DAYS_PER_EMPLOYEE",
+      "name_en": "Total absence days per employee",
+      "name_ar": "إجمالي أيام الغياب لكل موظف",
+      "entity": "employee",
+      "grain": [
+        "Employee ID"
+      ],
+      "unit": "day",
+      "source": {
+        "type": "view",
+        "name": "employee_summary_view",
+        "column": "Total Absence Days"
+      },
+      "expression_sql": "\"Total Absence Days\"",
+      "description_en": "Total absence days per employee",
+      "description_ar": "إجمالي أيام الغياب للموظف خلال الفترة",
+      "synonyms_en": [
+        "absence days",
+        "total absence"
+      ],
+      "synonyms_ar": [
+        "أيام الغياب",
+        "إجمالي الغياب"
+      ]
+    },
+    {
+      "id": "TOTAL_DELAY_MINUTES_PER_EMPLOYEE",
+      "name_en": "Total personal delay minutes per employee",
+      "name_ar": "إجمالي دقائق التأخير الشخصية لكل موظف",
+      "entity": "employee",
+      "grain": [
+        "Employee ID"
+      ],
+      "unit": "minute",
+      "source": {
+        "type": "view",
+        "name": "employee_summary_view",
+        "column": "Total Delay Minutes"
+      },
+      "expression_sql": "\"Total Delay Minutes\"",
+      "description_en": "Total delay minutes (late attendance) per employee",
+      "description_ar": "إجمالي دقائق التأخير في الحضور لكل موظف",
+      "synonyms_en": [
+        "personal delay minutes",
+        "attendance delay"
+      ],
+      "synonyms_ar": [
+        "تأخير الحضور",
+        "دقائق التأخير الشخصية",
+        "إجمالي التأخير الشخصي"
+      ]
+    },
+    {
+      "id": "TOTAL_FLIGHT_DELAY_MINUTES_PER_AIRLINE_TCC",
+      "name_en": "Total TCC delay minutes per airline",
+      "name_ar": "إجمالي دقائق تأخيرات TCC لكل شركة طيران",
+      "entity": "airline",
+      "grain": [
+        "Airlines"
+      ],
+      "unit": "minute",
+      "source": {
+        "type": "view",
+        "name": "tcc_sgs_flight_delay_view",
+        "column": "delay_minutes"
+      },
+      "expression_sql": "sum(delay_minutes)",
+      "description_en": "Total delay minutes for TCC-coded delays per airline",
+      "description_ar": "إجمالي دقائق التأخير للحوادث المكودة على TCC لكل شركة طيران",
+      "synonyms_en": [
+        "airline delay minutes",
+        "tcc delay per airline"
+      ],
+      "synonyms_ar": [
+        "تأخيرات الشركة",
+        "تأخيرات شركة الطيران (TCC)"
+      ]
+    },
+    {
+      "id": "TOTAL_FLIGHT_DELAY_MINUTES_PER_CONTROL",
+      "name_en": "Total flight delay minutes per Control officer",
+      "name_ar": "إجمالي دقائق تأخيرات الرحلات لكل مراقب (Control)",
+      "entity": "control",
+      "grain": [
+        "Control Name"
+      ],
+      "unit": "minute",
+      "source": {
+        "type": "view",
+        "name": "tcc_dep_flight_delay_view",
+        "column": "incident_total_delay_minutes"
+      },
+      "expression_sql": "sum(incident_total_delay_minutes)",
+      "description_en": "Total delay minutes for incidents linked to each Control officer",
+      "description_ar": "إجمالي دقائق التأخير للحوادث المرتبطة بكل مراقب (Control)",
+      "synonyms_en": [
+        "control delay minutes"
+      ],
+      "synonyms_ar": [
+        "تأخيرات الكونترول",
+        "تأخيرات المراقب"
+      ]
+    },
+    {
+      "id": "TOTAL_FLIGHT_DELAY_MINUTES_PER_DEPARTMENT",
+      "name_en": "Total flight delay minutes per department (TCC scope)",
+      "name_ar": "إجمالي دقائق تأخيرات الرحلات لكل قسم ضمن نطاق TCC",
+      "entity": "department",
+      "grain": [
+        "Department"
+      ],
+      "unit": "minute",
+      "source": {
+        "type": "view",
+        "name": "tcc_dep_flight_delay_view",
+        "column": "incident_total_delay_minutes"
+      },
+      "expression_sql": "sum(incident_total_delay_minutes)",
+      "description_en": "Total delay minutes for incidents attributed to each department",
+      "description_ar": "إجمالي دقائق التأخير لجميع الحوادث المنسوبة لكل قسم",
+      "synonyms_en": [
+        "total delay minutes per department"
+      ],
+      "synonyms_ar": [
+        "إجمالي تأخيرات الرحلات لكل قسم",
+        "تأخيرات القسم"
+      ]
+    },
+    {
+      "id": "TOTAL_FLIGHT_DELAY_MINUTES_PER_DUTY_MANAGER",
+      "name_en": "Total flight delay minutes per Duty Manager",
+      "name_ar": "إجمالي دقائق تأخيرات الرحلات لكل مدير مناوب",
+      "entity": "duty_manager",
+      "grain": [
+        "Duty Manager Name"
+      ],
+      "unit": "minute",
+      "source": {
+        "type": "view",
+        "name": "tcc_dep_flight_delay_view",
+        "column": "incident_total_delay_minutes"
+      },
+      "expression_sql": "sum(incident_total_delay_minutes)",
+      "description_en": "Total delay minutes for incidents under each Duty Manager",
+      "description_ar": "إجمالي دقائق التأخير للحوادث التي وقعت تحت مسؤولية كل مدير مناوب",
+      "synonyms_en": [
+        "duty manager delay minutes"
+      ],
+      "synonyms_ar": [
+        "تأخيرات المدير المناوب",
+        "إجمالي تأخيرات DM"
+      ]
+    },
+    {
+      "id": "TOTAL_FLIGHT_DELAY_MINUTES_PER_EMPLOYEE",
+      "name_en": "Total flight delay minutes per employee (TCC incidents)",
+      "name_ar": "إجمالي دقائق تأخيرات الرحلات لكل موظف (حوادث TCC)",
+      "entity": "employee",
+      "grain": [
+        "employee_id"
+      ],
+      "unit": "minute",
+      "source": {
+        "type": "view",
+        "name": "employee_flight_delay_link_view",
+        "column": "incident_total_delay_minutes"
+      },
+      "expression_sql": "sum(incident_total_delay_minutes)",
+      "description_en": "Sum of incident delay minutes (arrival + departure) for all flights linked to the employee",
+      "description_ar": "مجموع دقائق تأخير الرحلات (وصول + مغادرة) لجميع الحوادث المرتبطة بالموظف",
+      "synonyms_en": [
+        "flight delay minutes per employee",
+        "total incident delay minutes"
+      ],
+      "synonyms_ar": [
+        "إجمالي تأخيرات الرحلات للموظف",
+        "دقائق تأخير الرحلات المرتبطة بالموظف"
+      ]
+    },
+    {
+      "id": "TOTAL_FLIGHT_DELAY_MINUTES_PER_SHIFT_TCC",
+      "name_en": "Total TCC delay minutes per shift",
+      "name_ar": "إجمالي دقائق تأخيرات TCC لكل شفت",
+      "entity": "shift",
+      "grain": [
+        "Shift"
+      ],
+      "unit": "minute",
+      "source": {
+        "type": "view",
+        "name": "tcc_sgs_flight_delay_view",
+        "column": "delay_minutes"
+      },
+      "expression_sql": "sum(delay_minutes)",
+      "description_en": "Total delay minutes for TCC-coded delays per shift",
+      "description_ar": "إجمالي دقائق التأخير للحوادث المكودة على TCC لكل شفت",
+      "synonyms_en": [
+        "shift delay minutes",
+        "tcc delay per shift"
+      ],
+      "synonyms_ar": [
+        "تأخيرات الشفت",
+        "تأخيرات الفترة (TCC)"
+      ]
+    },
+    {
+      "id": "TOTAL_FLIGHT_DELAY_MINUTES_PER_SUPERVISOR",
+      "name_en": "Total flight delay minutes per Supervisor",
+      "name_ar": "إجمالي دقائق تأخيرات الرحلات لكل مشرف",
+      "entity": "supervisor",
+      "grain": [
+        "Supervisor Name"
+      ],
+      "unit": "minute",
+      "source": {
+        "type": "view",
+        "name": "tcc_dep_flight_delay_view",
+        "column": "incident_total_delay_minutes"
+      },
+      "expression_sql": "sum(incident_total_delay_minutes)",
+      "description_en": "Total delay minutes for incidents under each Supervisor",
+      "description_ar": "إجمالي دقائق التأخير للحوادث التي وقعت تحت مسؤولية كل مشرف",
+      "synonyms_en": [
+        "supervisor delay minutes"
+      ],
+      "synonyms_ar": [
+        "تأخيرات المشرف",
+        "إجمالي تأخيرات المشرفين"
+      ]
+    },
+    {
+      "id": "TOTAL_OVERTIME_HOURS_PER_EMPLOYEE",
+      "name_en": "Total overtime hours per employee",
+      "name_ar": "إجمالي ساعات العمل الإضافي لكل موظف",
+      "entity": "employee",
+      "grain": [
+        "Employee ID"
+      ],
+      "unit": "hour",
+      "source": {
+        "type": "view",
+        "name": "employee_summary_view",
+        "column": "Total Overtime Hours"
+      },
+      "expression_sql": "\"Total Overtime Hours\"",
+      "description_en": "Total overtime hours logged for each employee",
+      "description_ar": "إجمالي ساعات العمل الإضافي المسجلة لكل موظف",
+      "synonyms_en": [
+        "overtime hours",
+        "total overtime"
+      ],
+      "synonyms_ar": [
+        "ساعات العمل الإضافي",
+        "الإضافي",
+        "إجمالي الإضافي"
+      ]
+    },
+    {
+      "id": "TOTAL_SICK_DAYS_PER_EMPLOYEE",
+      "name_en": "Total sick days per employee",
+      "name_ar": "إجمالي أيام الإجازة المرضية لكل موظف",
+      "entity": "employee",
+      "grain": [
+        "Employee ID"
+      ],
+      "unit": "day",
+      "source": {
+        "type": "view",
+        "name": "employee_summary_view",
+        "column": "Total Sick Days"
+      },
+      "expression_sql": "\"Total Sick Days\"",
+      "description_en": "Total sick leave days per employee",
+      "description_ar": "إجمالي أيام الإجازة المرضية لكل موظف خلال الفترة",
+      "synonyms_en": [
+        "sick days",
+        "total sick leave"
+      ],
+      "synonyms_ar": [
+        "الإجازة المرضية",
+        "أيام المرضي",
+        "إجمالي الإجازة المرضية"
+      ]
+    }
+  ]
+}

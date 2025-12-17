@@ -1,0 +1,2924 @@
+{
+  "version": 1,
+  "tables": [
+    {
+      "name": "dep_flight_delay",
+      "label_en": "TCC Flight Delay Details",
+      "label_ar": "تفاصيل تأخيرات الرحلات - TCC",
+      "entity_type": "flight_delay",
+      "role": "tcc_detail",
+      "primary_key": [
+        "Title"
+      ],
+      "description_en": "Detailed TCC-related flight delays with investigation and responsibility",
+      "description_ar": "سجل تفصيلي لتأخيرات الرحلات الخاصة بـ TCC مع التحقيق والمسؤوليات",
+      "columns": [
+        {
+          "original_name": "Administrative procedure",
+          "canonical_name": "administrative_procedure",
+          "data_type": "text",
+          "semantic_type": "action",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Airlines",
+          "canonical_name": "airlines",
+          "data_type": "text",
+          "semantic_type": "airline",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Arrival Destination",
+          "canonical_name": "arrival_destination",
+          "data_type": "text",
+          "semantic_type": "destination",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Arrival Flight Number",
+          "canonical_name": "arrival_flight_number",
+          "data_type": "text",
+          "semantic_type": "flight_number",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Arrival Violations",
+          "canonical_name": "arrival_violations",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "ATA",
+          "canonical_name": "ata",
+          "data_type": "time",
+          "semantic_type": "time",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "ATD",
+          "canonical_name": "atd",
+          "data_type": "time",
+          "semantic_type": "time",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Consent to send investigation",
+          "canonical_name": "consent_to_send_investigation",
+          "data_type": "text",
+          "semantic_type": "status",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Control ID",
+          "canonical_name": "control_id",
+          "data_type": "bigint",
+          "semantic_type": "id",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Control Name",
+          "canonical_name": "control_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "control",
+            "control name"
+          ],
+          "synonyms_ar": [
+            "المراقب",
+            "كونترول"
+          ]
+        },
+        {
+          "original_name": "created_at",
+          "canonical_name": "created_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Current reminder",
+          "canonical_name": "current_reminder",
+          "data_type": "jsonb",
+          "semantic_type": "json",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Date",
+          "canonical_name": "date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "date",
+            "flight date"
+          ],
+          "synonyms_ar": [
+            "التاريخ",
+            "تاريخ الرحلة"
+          ]
+        },
+        {
+          "original_name": "Department",
+          "canonical_name": "department",
+          "data_type": "text",
+          "semantic_type": "org_unit",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Departure Destination",
+          "canonical_name": "departure_destination",
+          "data_type": "text",
+          "semantic_type": "destination",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Departure Flight Number",
+          "canonical_name": "departure_flight_number",
+          "data_type": "text",
+          "semantic_type": "flight_number",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "flight number",
+            "dep flight"
+          ],
+          "synonyms_ar": [
+            "رقم الرحلة",
+            "رحلة المغادرة"
+          ]
+        },
+        {
+          "original_name": "Departure Violations",
+          "canonical_name": "departure_violations",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Description of Incident",
+          "canonical_name": "description_of_incident",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Duty Manager ID",
+          "canonical_name": "duty_manager_id",
+          "data_type": "bigint",
+          "semantic_type": "id",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Duty Manager Name",
+          "canonical_name": "duty_manager_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "duty manager",
+            "dm"
+          ],
+          "synonyms_ar": [
+            "المدير المناوب",
+            "مدير المناوبة"
+          ]
+        },
+        {
+          "original_name": "Employee ID",
+          "canonical_name": "employee_id",
+          "data_type": "bigint",
+          "semantic_type": "fk_employee",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": true,
+          "references": {
+            "table": "employee_master_db",
+            "column": "Employee ID"
+          },
+          "synonyms_en": [
+            "employee id",
+            "emp id"
+          ],
+          "synonyms_ar": [
+            "رقم الموظف",
+            "معرف الموظف"
+          ]
+        },
+        {
+          "original_name": "Employee Name",
+          "canonical_name": "employee_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Failure Impact",
+          "canonical_name": "failure_impact",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Final action",
+          "canonical_name": "final_action",
+          "data_type": "text",
+          "semantic_type": "action",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Flight Category",
+          "canonical_name": "flight_category",
+          "data_type": "text",
+          "semantic_type": "category",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Flight Direction",
+          "canonical_name": "flight_direction",
+          "data_type": "text",
+          "semantic_type": "direction",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Gate",
+          "canonical_name": "gate",
+          "data_type": "text",
+          "semantic_type": "gate",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Investigation status",
+          "canonical_name": "investigation_status",
+          "data_type": "text",
+          "semantic_type": "status",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Investigation status2",
+          "canonical_name": "investigation_status2",
+          "data_type": "text",
+          "semantic_type": "status",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "InvestigationID",
+          "canonical_name": "investigationid",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Item Type",
+          "canonical_name": "item_type",
+          "data_type": "text",
+          "semantic_type": "technical",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Last Update",
+          "canonical_name": "last_update",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "latitude_deg",
+          "canonical_name": "latitude_deg",
+          "data_type": "float8",
+          "semantic_type": "latitude",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "longitude_deg",
+          "canonical_name": "longitude_deg",
+          "data_type": "float8",
+          "semantic_type": "longitude",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Manager Notes",
+          "canonical_name": "manager_notes",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Path",
+          "canonical_name": "path",
+          "data_type": "text",
+          "semantic_type": "technical",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Respond to the investigation",
+          "canonical_name": "respond_to_the_investigation",
+          "data_type": "text",
+          "semantic_type": "status",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Shift",
+          "canonical_name": "shift",
+          "data_type": "text",
+          "semantic_type": "shift",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "STA",
+          "canonical_name": "sta",
+          "data_type": "time",
+          "semantic_type": "time",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "STD",
+          "canonical_name": "std",
+          "data_type": "time",
+          "semantic_type": "time",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Supervisor ID",
+          "canonical_name": "supervisor_id",
+          "data_type": "bigint",
+          "semantic_type": "id",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Supervisor Name",
+          "canonical_name": "supervisor_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "supervisor"
+          ],
+          "synonyms_ar": [
+            "المشرف"
+          ]
+        },
+        {
+          "original_name": "Title",
+          "canonical_name": "title",
+          "data_type": "bigint",
+          "semantic_type": "event_id",
+          "is_nullable": false,
+          "is_primary_key": true,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "updated_at",
+          "canonical_name": "updated_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        }
+      ]
+    },
+    {
+      "name": "employee_absence",
+      "label_en": "Employee Absence",
+      "label_ar": "غياب الموظف",
+      "entity_type": "employee_activity",
+      "role": "event",
+      "primary_key": [
+        "Title"
+      ],
+      "description_en": "Absence records per employee and date",
+      "description_ar": "سجلات غياب الموظفين حسب التاريخ",
+      "columns": [
+        {
+          "original_name": "Absence Notification Status",
+          "canonical_name": "absence_notification_status",
+          "data_type": "varchar",
+          "semantic_type": "status",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Administrative procedure",
+          "canonical_name": "administrative_procedure",
+          "data_type": "varchar",
+          "semantic_type": "action",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Consent to send investigation",
+          "canonical_name": "consent_to_send_investigation",
+          "data_type": "varchar",
+          "semantic_type": "status",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "created_at",
+          "canonical_name": "created_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Current reminder",
+          "canonical_name": "current_reminder",
+          "data_type": "jsonb",
+          "semantic_type": "json",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Date",
+          "canonical_name": "date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Department",
+          "canonical_name": "department",
+          "data_type": "varchar",
+          "semantic_type": "org_unit",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Employee ID",
+          "canonical_name": "employee_id",
+          "data_type": "bigint",
+          "semantic_type": "fk_employee",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": true,
+          "references": {
+            "table": "employee_master_db",
+            "column": "Employee ID"
+          },
+          "synonyms_en": [
+            "employee id",
+            "emp id"
+          ],
+          "synonyms_ar": [
+            "رقم الموظف",
+            "معرف الموظف"
+          ]
+        },
+        {
+          "original_name": "Employee Name",
+          "canonical_name": "employee_name",
+          "data_type": "varchar",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Final action",
+          "canonical_name": "final_action",
+          "data_type": "varchar",
+          "semantic_type": "action",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Investigation status",
+          "canonical_name": "investigation_status",
+          "data_type": "varchar",
+          "semantic_type": "status",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "InvestigationID",
+          "canonical_name": "investigationid",
+          "data_type": "varchar",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Item Type",
+          "canonical_name": "item_type",
+          "data_type": "varchar",
+          "semantic_type": "technical",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Last Update",
+          "canonical_name": "last_update",
+          "data_type": "varchar",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Manager Notes",
+          "canonical_name": "manager_notes",
+          "data_type": "varchar",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Path",
+          "canonical_name": "path",
+          "data_type": "varchar",
+          "semantic_type": "technical",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Respond to the investigation",
+          "canonical_name": "respond_to_the_investigation",
+          "data_type": "varchar",
+          "semantic_type": "status",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Shift",
+          "canonical_name": "shift",
+          "data_type": "varchar",
+          "semantic_type": "shift",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Title",
+          "canonical_name": "title",
+          "data_type": "bigint",
+          "semantic_type": "event_id",
+          "is_nullable": false,
+          "is_primary_key": true,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "updated_at",
+          "canonical_name": "updated_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        }
+      ]
+    },
+    {
+      "name": "employee_delay",
+      "label_en": "Employee Delay",
+      "label_ar": "تأخير الموظف (الحضور)",
+      "entity_type": "employee_activity",
+      "role": "event",
+      "primary_key": [
+        "Title"
+      ],
+      "description_en": "Delay minutes records for employee attendance",
+      "description_ar": "سجلات دقائق تأخير الحضور للموظف",
+      "columns": [
+        {
+          "original_name": "Administrative procedure",
+          "canonical_name": "administrative_procedure",
+          "data_type": "text",
+          "semantic_type": "action",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Consent to send investigation",
+          "canonical_name": "consent_to_send_investigation",
+          "data_type": "text",
+          "semantic_type": "status",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "created_at",
+          "canonical_name": "created_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Current reminder",
+          "canonical_name": "current_reminder",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Date",
+          "canonical_name": "date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Delay Minutes",
+          "canonical_name": "delay_minutes",
+          "data_type": "text",
+          "semantic_type": "duration_minute",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Delay Notification Status",
+          "canonical_name": "delay_notification_status",
+          "data_type": "text",
+          "semantic_type": "status",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Department",
+          "canonical_name": "department",
+          "data_type": "text",
+          "semantic_type": "org_unit",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Employee ID",
+          "canonical_name": "employee_id",
+          "data_type": "bigint",
+          "semantic_type": "fk_employee",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": true,
+          "references": {
+            "table": "employee_master_db",
+            "column": "Employee ID"
+          },
+          "synonyms_en": [
+            "employee id",
+            "emp id"
+          ],
+          "synonyms_ar": [
+            "رقم الموظف",
+            "معرف الموظف"
+          ]
+        },
+        {
+          "original_name": "Employee Name",
+          "canonical_name": "employee_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Final action",
+          "canonical_name": "final_action",
+          "data_type": "text",
+          "semantic_type": "action",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Investigation status",
+          "canonical_name": "investigation_status",
+          "data_type": "text",
+          "semantic_type": "status",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "InvestigationID",
+          "canonical_name": "investigationid",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Item Type",
+          "canonical_name": "item_type",
+          "data_type": "text",
+          "semantic_type": "technical",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Last Update",
+          "canonical_name": "last_update",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Manager Notes",
+          "canonical_name": "manager_notes",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Path",
+          "canonical_name": "path",
+          "data_type": "text",
+          "semantic_type": "technical",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Reason for Delay",
+          "canonical_name": "reason_for_delay",
+          "data_type": "text",
+          "semantic_type": "reason",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Respond to the investigation",
+          "canonical_name": "respond_to_the_investigation",
+          "data_type": "text",
+          "semantic_type": "status",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Shift",
+          "canonical_name": "shift",
+          "data_type": "text",
+          "semantic_type": "shift",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Title",
+          "canonical_name": "title",
+          "data_type": "bigint",
+          "semantic_type": "event_id",
+          "is_nullable": false,
+          "is_primary_key": true,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "updated_at",
+          "canonical_name": "updated_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        }
+      ]
+    },
+    {
+      "name": "employee_master_db",
+      "label_en": "Employee Master",
+      "label_ar": "الجدول الرئيسي للموظفين",
+      "entity_type": "employee",
+      "role": "master",
+      "primary_key": [
+        "Employee ID"
+      ],
+      "description_en": "Master data for all employees in TCC/SGS",
+      "description_ar": "البيانات الرئيسية لجميع موظفي مركز مراقبة الحركة والقطاعات التابعة له",
+      "columns": [
+        {
+          "original_name": "Action Effective Date",
+          "canonical_name": "action_effective_date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Actual Role",
+          "canonical_name": "actual_role",
+          "data_type": "varchar",
+          "semantic_type": "category",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "created_at",
+          "canonical_name": "created_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Current Department",
+          "canonical_name": "current_department",
+          "data_type": "varchar",
+          "semantic_type": "org_unit",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "department"
+          ],
+          "synonyms_ar": [
+            "القسم",
+            "الإدارة"
+          ]
+        },
+        {
+          "original_name": "Department",
+          "canonical_name": "department",
+          "data_type": "varchar",
+          "semantic_type": "org_unit",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "department"
+          ],
+          "synonyms_ar": [
+            "القسم",
+            "الإدارة"
+          ]
+        },
+        {
+          "original_name": "Employee ID",
+          "canonical_name": "employee_id",
+          "data_type": "bigint",
+          "semantic_type": "id",
+          "is_nullable": false,
+          "is_primary_key": true,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "employee id",
+            "emp id",
+            "id"
+          ],
+          "synonyms_ar": [
+            "رقم الموظف",
+            "معرف الموظف",
+            "الرقم الوظيفي"
+          ]
+        },
+        {
+          "original_name": "Employee Name",
+          "canonical_name": "employee_name",
+          "data_type": "varchar",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "employee name",
+            "name"
+          ],
+          "synonyms_ar": [
+            "اسم الموظف",
+            "الاسم",
+            "اسم العامل"
+          ]
+        },
+        {
+          "original_name": "Employment Action Type",
+          "canonical_name": "employment_action_type",
+          "data_type": "varchar",
+          "semantic_type": "category",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Exit Reason",
+          "canonical_name": "exit_reason",
+          "data_type": "varchar",
+          "semantic_type": "category",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Gender",
+          "canonical_name": "gender",
+          "data_type": "varchar",
+          "semantic_type": "category",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Grade",
+          "canonical_name": "grade",
+          "data_type": "varchar",
+          "semantic_type": "category",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Hiring Date",
+          "canonical_name": "hiring_date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Job Title",
+          "canonical_name": "job_title",
+          "data_type": "varchar",
+          "semantic_type": "category",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Nationality",
+          "canonical_name": "nationality",
+          "data_type": "varchar",
+          "semantic_type": "category",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Note",
+          "canonical_name": "note",
+          "data_type": "varchar",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Previous Department",
+          "canonical_name": "previous_department",
+          "data_type": "varchar",
+          "semantic_type": "org_unit",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Record Date",
+          "canonical_name": "record_date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "updated_at",
+          "canonical_name": "updated_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        }
+      ]
+    },
+    {
+      "name": "employee_overtime",
+      "label_en": "Employee Overtime",
+      "label_ar": "العمل الإضافي للموظف",
+      "entity_type": "employee_activity",
+      "role": "event",
+      "primary_key": [
+        "Title"
+      ],
+      "description_en": "Overtime assignments per employee",
+      "description_ar": "سجلات العمل الإضافي لكل موظف",
+      "columns": [
+        {
+          "original_name": "Assignment Date",
+          "canonical_name": "assignment_date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Assignment Days",
+          "canonical_name": "assignment_days",
+          "data_type": "varchar",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Assignment Reason",
+          "canonical_name": "assignment_reason",
+          "data_type": "varchar",
+          "semantic_type": "reason",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Assignment Type",
+          "canonical_name": "assignment_type",
+          "data_type": "varchar",
+          "semantic_type": "category",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "created_at",
+          "canonical_name": "created_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Department",
+          "canonical_name": "department",
+          "data_type": "varchar",
+          "semantic_type": "org_unit",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Duty Manager ID",
+          "canonical_name": "duty_manager_id",
+          "data_type": "bigint",
+          "semantic_type": "id",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Duty Manager Name",
+          "canonical_name": "duty_manager_name",
+          "data_type": "varchar",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Employee ID",
+          "canonical_name": "employee_id",
+          "data_type": "bigint",
+          "semantic_type": "fk_employee",
+          "is_nullable": false,
+          "is_primary_key": false,
+          "is_foreign_key": true,
+          "references": {
+            "table": "employee_master_db",
+            "column": "Employee ID"
+          },
+          "synonyms_en": [
+            "employee id",
+            "emp id"
+          ],
+          "synonyms_ar": [
+            "رقم الموظف",
+            "معرف الموظف"
+          ]
+        },
+        {
+          "original_name": "Employee Name",
+          "canonical_name": "employee_name",
+          "data_type": "varchar",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Item Type",
+          "canonical_name": "item_type",
+          "data_type": "varchar",
+          "semantic_type": "technical",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Notes",
+          "canonical_name": "notes",
+          "data_type": "varchar",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Notification Date",
+          "canonical_name": "notification_date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Notification Time",
+          "canonical_name": "notification_time",
+          "data_type": "varchar",
+          "semantic_type": "time",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Path",
+          "canonical_name": "path",
+          "data_type": "varchar",
+          "semantic_type": "technical",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Shift",
+          "canonical_name": "shift",
+          "data_type": "varchar",
+          "semantic_type": "shift",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Title",
+          "canonical_name": "title",
+          "data_type": "bigint",
+          "semantic_type": "event_id",
+          "is_nullable": false,
+          "is_primary_key": true,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Total Hours",
+          "canonical_name": "total_hours",
+          "data_type": "numeric",
+          "semantic_type": "duration_hour",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "updated_at",
+          "canonical_name": "updated_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        }
+      ]
+    },
+    {
+      "name": "employee_sick_leave",
+      "label_en": "Employee Sick Leave",
+      "label_ar": "الإجازات المرضية للموظف",
+      "entity_type": "employee_activity",
+      "role": "event",
+      "primary_key": [
+        "Title"
+      ],
+      "description_en": "Sick leave periods per employee",
+      "description_ar": "فترات الإجازة المرضية لكل موظف",
+      "columns": [
+        {
+          "original_name": "created_at",
+          "canonical_name": "created_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Date",
+          "canonical_name": "date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Department",
+          "canonical_name": "department",
+          "data_type": "varchar",
+          "semantic_type": "org_unit",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Employee ID",
+          "canonical_name": "employee_id",
+          "data_type": "bigint",
+          "semantic_type": "fk_employee",
+          "is_nullable": false,
+          "is_primary_key": false,
+          "is_foreign_key": true,
+          "references": {
+            "table": "employee_master_db",
+            "column": "Employee ID"
+          },
+          "synonyms_en": [
+            "employee id",
+            "emp id"
+          ],
+          "synonyms_ar": [
+            "رقم الموظف",
+            "معرف الموظف"
+          ]
+        },
+        {
+          "original_name": "Employee Name",
+          "canonical_name": "employee_name",
+          "data_type": "varchar",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "import_batch_id",
+          "canonical_name": "import_batch_id",
+          "data_type": "text",
+          "semantic_type": "technical",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Item Type",
+          "canonical_name": "item_type",
+          "data_type": "varchar",
+          "semantic_type": "technical",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Path",
+          "canonical_name": "path",
+          "data_type": "varchar",
+          "semantic_type": "technical",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Shift",
+          "canonical_name": "shift",
+          "data_type": "varchar",
+          "semantic_type": "shift",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Sick leave end date",
+          "canonical_name": "sick_leave_end_date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Sick leave start date",
+          "canonical_name": "sick_leave_start_date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": false,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Title",
+          "canonical_name": "title",
+          "data_type": "bigint",
+          "semantic_type": "event_id",
+          "is_nullable": false,
+          "is_primary_key": true,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "updated_at",
+          "canonical_name": "updated_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        }
+      ]
+    },
+    {
+      "name": "operational_event",
+      "label_en": "Operational Event",
+      "label_ar": "حدث تشغيلي",
+      "entity_type": "employee_activity",
+      "role": "event",
+      "primary_key": [
+        "Title"
+      ],
+      "description_en": "Operational events linked to employees",
+      "description_ar": "أحداث تشغيلية مرتبطة بالموظفين",
+      "columns": [
+        {
+          "original_name": "Administrative procedure",
+          "canonical_name": "administrative_procedure",
+          "data_type": "text",
+          "semantic_type": "action",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Consent to send investigation",
+          "canonical_name": "consent_to_send_investigation",
+          "data_type": "text",
+          "semantic_type": "status",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "created_at",
+          "canonical_name": "created_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Current reminder",
+          "canonical_name": "current_reminder",
+          "data_type": "jsonb",
+          "semantic_type": "json",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Department",
+          "canonical_name": "department",
+          "data_type": "text",
+          "semantic_type": "org_unit",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Disciplinary Action",
+          "canonical_name": "disciplinary_action",
+          "data_type": "text",
+          "semantic_type": "action",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Employee ID",
+          "canonical_name": "employee_id",
+          "data_type": "bigint",
+          "semantic_type": "fk_employee",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": true,
+          "references": {
+            "table": "employee_master_db",
+            "column": "Employee ID"
+          },
+          "synonyms_en": [
+            "employee id",
+            "emp id"
+          ],
+          "synonyms_ar": [
+            "رقم الموظف",
+            "معرف الموظف"
+          ]
+        },
+        {
+          "original_name": "Employee Name",
+          "canonical_name": "employee_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Event Date",
+          "canonical_name": "event_date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Event Type",
+          "canonical_name": "event_type",
+          "data_type": "text",
+          "semantic_type": "category",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Final action",
+          "canonical_name": "final_action",
+          "data_type": "text",
+          "semantic_type": "action",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Investigation status",
+          "canonical_name": "investigation_status",
+          "data_type": "text",
+          "semantic_type": "status",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "InvestigationID",
+          "canonical_name": "investigationid",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Item Type",
+          "canonical_name": "item_type",
+          "data_type": "text",
+          "semantic_type": "technical",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Last Update",
+          "canonical_name": "last_update",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Manager Notes",
+          "canonical_name": "manager_notes",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Path",
+          "canonical_name": "path",
+          "data_type": "text",
+          "semantic_type": "technical",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Respond to the investigation",
+          "canonical_name": "respond_to_the_investigation",
+          "data_type": "text",
+          "semantic_type": "status",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Shift",
+          "canonical_name": "shift",
+          "data_type": "text",
+          "semantic_type": "shift",
+          "is_nullable": false,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Title",
+          "canonical_name": "title",
+          "data_type": "bigint",
+          "semantic_type": "event_id",
+          "is_nullable": false,
+          "is_primary_key": true,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "updated_at",
+          "canonical_name": "updated_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        }
+      ]
+    },
+    {
+      "name": "sgs_flight_delay",
+      "label_en": "SGS Flight Delay",
+      "label_ar": "تأخيرات الرحلات - SGS",
+      "entity_type": "flight_delay",
+      "role": "company_level",
+      "primary_key": [
+        "id"
+      ],
+      "description_en": "All SGS flight delays for all departments",
+      "description_ar": "كل تأخيرات الرحلات المسجلة على مستوى شركة SGS لجميع الإدارات",
+      "columns": [
+        {
+          "original_name": "Aircraft Type",
+          "canonical_name": "aircraft_type",
+          "data_type": "text",
+          "semantic_type": "category",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Airlines",
+          "canonical_name": "airlines",
+          "data_type": "text",
+          "semantic_type": "airline",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "airline",
+            "carrier"
+          ],
+          "synonyms_ar": [
+            "شركة الطيران",
+            "الناقلة"
+          ]
+        },
+        {
+          "original_name": "ATD",
+          "canonical_name": "atd",
+          "data_type": "time",
+          "semantic_type": "time",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "created_at",
+          "canonical_name": "created_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": false,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Date",
+          "canonical_name": "date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "flight date",
+            "date"
+          ],
+          "synonyms_ar": [
+            "تاريخ الرحلة",
+            "التاريخ"
+          ]
+        },
+        {
+          "original_name": "Delay Code",
+          "canonical_name": "delay_code",
+          "data_type": "text",
+          "semantic_type": "delay_code",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "delay code",
+            "code"
+          ],
+          "synonyms_ar": [
+            "كود التأخير",
+            "رمز التأخير"
+          ]
+        },
+        {
+          "original_name": "Destination",
+          "canonical_name": "destination",
+          "data_type": "text",
+          "semantic_type": "destination",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Flight Category",
+          "canonical_name": "flight_category",
+          "data_type": "text",
+          "semantic_type": "category",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Flight Number",
+          "canonical_name": "flight_number",
+          "data_type": "text",
+          "semantic_type": "flight_number",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "flight number"
+          ],
+          "synonyms_ar": [
+            "رقم الرحلة"
+          ]
+        },
+        {
+          "original_name": "Gate",
+          "canonical_name": "gate",
+          "data_type": "text",
+          "semantic_type": "gate",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "id",
+          "canonical_name": "id",
+          "data_type": "bigint",
+          "semantic_type": "id",
+          "is_nullable": false,
+          "is_primary_key": true,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Note",
+          "canonical_name": "note",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Shift",
+          "canonical_name": "shift",
+          "data_type": "text",
+          "semantic_type": "shift",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "STD",
+          "canonical_name": "std",
+          "data_type": "time",
+          "semantic_type": "time",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "updated_at",
+          "canonical_name": "updated_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        }
+      ]
+    },
+    {
+      "name": "shift_report",
+      "label_en": "Shift Report",
+      "label_ar": "تقرير الشفت",
+      "entity_type": "shift_report",
+      "role": "summary",
+      "primary_key": [
+        "Title"
+      ],
+      "description_en": "Shift level operational summary",
+      "description_ar": "ملخص تشغيلي على مستوى الشفت",
+      "columns": [
+        {
+          "original_name": "Arrivals Domestic",
+          "canonical_name": "arrivals_domestic",
+          "data_type": "bigint",
+          "semantic_type": "count",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Arrivals International+Foreign",
+          "canonical_name": "arrivals_international_plus_foreign",
+          "data_type": "text",
+          "semantic_type": "count_text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Cars In Service",
+          "canonical_name": "cars_in_service",
+          "data_type": "bigint",
+          "semantic_type": "count",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Cars Out Of Service",
+          "canonical_name": "cars_out_of_service",
+          "data_type": "bigint",
+          "semantic_type": "count",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Comments All Halls",
+          "canonical_name": "comments_all_halls",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Comments Domestic",
+          "canonical_name": "comments_domestic",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Comments International+Foreign",
+          "canonical_name": "comments_international_plus_foreign",
+          "data_type": "text",
+          "semantic_type": "text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Control 1 End Time",
+          "canonical_name": "control_1_end_time",
+          "data_type": "text",
+          "semantic_type": "time",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Control 1 ID",
+          "canonical_name": "control_1_id",
+          "data_type": "bigint",
+          "semantic_type": "id",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Control 1 Name",
+          "canonical_name": "control_1_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Control 1 Start Time",
+          "canonical_name": "control_1_start_time",
+          "data_type": "text",
+          "semantic_type": "time",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Control 2 End Time",
+          "canonical_name": "control_2_end_time",
+          "data_type": "text",
+          "semantic_type": "time",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Control 2 ID",
+          "canonical_name": "control_2_id",
+          "data_type": "bigint",
+          "semantic_type": "id",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Control 2 Name",
+          "canonical_name": "control_2_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Control 2 Start Time",
+          "canonical_name": "control_2_start_time",
+          "data_type": "text",
+          "semantic_type": "time",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "created_at",
+          "canonical_name": "created_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Date",
+          "canonical_name": "date",
+          "data_type": "text",
+          "semantic_type": "date_text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "date",
+            "shift date"
+          ],
+          "synonyms_ar": [
+            "تاريخ الشفت",
+            "التاريخ"
+          ]
+        },
+        {
+          "original_name": "Delayed Arrivals Domestic",
+          "canonical_name": "delayed_arrivals_domestic",
+          "data_type": "bigint",
+          "semantic_type": "count",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Delayed Arrivals International+Foreign",
+          "canonical_name": "delayed_arrivals_international_plus_foreign",
+          "data_type": "text",
+          "semantic_type": "count_text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Delayed Departures Domestic",
+          "canonical_name": "delayed_departures_domestic",
+          "data_type": "bigint",
+          "semantic_type": "count",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Delayed Departures International+Foreign",
+          "canonical_name": "delayed_departures_international_plus_foreign",
+          "data_type": "bigint",
+          "semantic_type": "count",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Department",
+          "canonical_name": "department",
+          "data_type": "text",
+          "semantic_type": "org_unit",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Departures Domestic",
+          "canonical_name": "departures_domestic",
+          "data_type": "bigint",
+          "semantic_type": "count",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Departures International+Foreign",
+          "canonical_name": "departures_international_plus_foreign",
+          "data_type": "bigint",
+          "semantic_type": "count",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Duty Manager All Halls ID",
+          "canonical_name": "duty_manager_all_halls_id",
+          "data_type": "text",
+          "semantic_type": "id_text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Duty Manager All Halls Name",
+          "canonical_name": "duty_manager_all_halls_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Duty Manager Domestic ID",
+          "canonical_name": "duty_manager_domestic_id",
+          "data_type": "bigint",
+          "semantic_type": "id",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Duty Manager Domestic Name",
+          "canonical_name": "duty_manager_domestic_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Duty Manager International+Foreign ID",
+          "canonical_name": "duty_manager_international_plus_foreign_id",
+          "data_type": "bigint",
+          "semantic_type": "id",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Duty Manager International+Foreign Name",
+          "canonical_name": "duty_manager_international_plus_foreign_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Item Type",
+          "canonical_name": "item_type",
+          "data_type": "text",
+          "semantic_type": "technical",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "No Show",
+          "canonical_name": "no_show",
+          "data_type": "bigint",
+          "semantic_type": "count",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "On Duty",
+          "canonical_name": "on_duty",
+          "data_type": "bigint",
+          "semantic_type": "count",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Path",
+          "canonical_name": "path",
+          "data_type": "text",
+          "semantic_type": "technical",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Shift",
+          "canonical_name": "shift",
+          "data_type": "text",
+          "semantic_type": "shift",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "shift"
+          ],
+          "synonyms_ar": [
+            "الشفت",
+            "الفترة"
+          ]
+        },
+        {
+          "original_name": "Supervisor All Halls ID",
+          "canonical_name": "supervisor_all_halls_id",
+          "data_type": "text",
+          "semantic_type": "id_text",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Supervisor All Halls Name",
+          "canonical_name": "supervisor_all_halls_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Supervisor Domestic ID",
+          "canonical_name": "supervisor_domestic_id",
+          "data_type": "bigint",
+          "semantic_type": "id",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Supervisor Domestic Name",
+          "canonical_name": "supervisor_domestic_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Supervisor International+Foreign ID",
+          "canonical_name": "supervisor_international_plus_foreign_id",
+          "data_type": "bigint",
+          "semantic_type": "id",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Supervisor International+Foreign Name",
+          "canonical_name": "supervisor_international_plus_foreign_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Title",
+          "canonical_name": "title",
+          "data_type": "bigint",
+          "semantic_type": "event_id",
+          "is_nullable": false,
+          "is_primary_key": true,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "updated_at",
+          "canonical_name": "updated_at",
+          "data_type": "timestamptz",
+          "semantic_type": "technical_timestamp",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Wireless Devices In Service",
+          "canonical_name": "wireless_devices_in_service",
+          "data_type": "bigint",
+          "semantic_type": "count",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Wireless Devices Out Of Service",
+          "canonical_name": "wireless_devices_out_of_service",
+          "data_type": "bigint",
+          "semantic_type": "count",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        }
+      ]
+    }
+  ],
+  "views": [
+    {
+      "name": "employee_activities_view",
+      "label_en": "Employee Activities",
+      "label_ar": "أنشطة الموظف الموحدة",
+      "entity_type": "employee_activity",
+      "role": "analytics",
+      "description_en": "Unified view for all employee activities (absence, sick leave, overtime, delay, operational events)",
+      "description_ar": "منظور موحد لكل أنشطة الموظف (غياب، إجازة مرضية، عمل إضافي، تأخير، أحداث تشغيلية)",
+      "columns": [
+        {
+          "original_name": "employee_id",
+          "canonical_name": "employee_id",
+          "data_type": "bigint",
+          "semantic_type": "fk_employee",
+          "is_nullable": false,
+          "is_primary_key": false,
+          "is_foreign_key": true,
+          "references": {
+            "table": "employee_master_db",
+            "column": "Employee ID"
+          },
+          "synonyms_en": [
+            "employee id",
+            "emp id"
+          ],
+          "synonyms_ar": [
+            "رقم الموظف",
+            "معرف الموظف"
+          ]
+        },
+        {
+          "original_name": "employee_name",
+          "canonical_name": "employee_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "employee name"
+          ],
+          "synonyms_ar": [
+            "اسم الموظف"
+          ]
+        },
+        {
+          "original_name": "department",
+          "canonical_name": "department",
+          "data_type": "text",
+          "semantic_type": "org_unit",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "department"
+          ],
+          "synonyms_ar": [
+            "القسم",
+            "الإدارة"
+          ]
+        },
+        {
+          "original_name": "activity_date",
+          "canonical_name": "activity_date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": false,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "activity date",
+            "date"
+          ],
+          "synonyms_ar": [
+            "تاريخ النشاط",
+            "التاريخ"
+          ]
+        },
+        {
+          "original_name": "activity_type",
+          "canonical_name": "activity_type",
+          "data_type": "text",
+          "semantic_type": "category",
+          "is_nullable": false,
+          "is_primary_key": false,
+          "is_foreign_key": false,
+          "synonyms_en": [
+            "activity type"
+          ],
+          "synonyms_ar": [
+            "نوع النشاط"
+          ]
+        },
+        {
+          "original_name": "quantity",
+          "canonical_name": "quantity",
+          "data_type": "numeric",
+          "semantic_type": "measure",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "quantity_unit",
+          "canonical_name": "quantity_unit",
+          "data_type": "text",
+          "semantic_type": "unit",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        }
+      ]
+    },
+    {
+      "name": "employee_summary_view",
+      "label_en": "Employee Summary",
+      "label_ar": "ملخص أداء الموظف",
+      "entity_type": "employee",
+      "role": "analytics",
+      "description_en": "Aggregated performance indicators per employee",
+      "description_ar": "مؤشرات أداء مجمعة لكل موظف",
+      "columns": [
+        {
+          "original_name": "Employee ID",
+          "canonical_name": "employee_id",
+          "data_type": "bigint",
+          "semantic_type": "fk_employee",
+          "is_nullable": false,
+          "is_primary_key": false,
+          "is_foreign_key": true,
+          "references": {
+            "table": "employee_master_db",
+            "column": "Employee ID"
+          }
+        },
+        {
+          "original_name": "Employee Name",
+          "canonical_name": "employee_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Current Department",
+          "canonical_name": "current_department",
+          "data_type": "text",
+          "semantic_type": "org_unit",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Job Title",
+          "canonical_name": "job_title",
+          "data_type": "text",
+          "semantic_type": "category",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Hiring Date",
+          "canonical_name": "hiring_date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Total Sick Days",
+          "canonical_name": "total_sick_days",
+          "data_type": "numeric",
+          "semantic_type": "measure",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Total Absence Days",
+          "canonical_name": "total_absence_days",
+          "data_type": "numeric",
+          "semantic_type": "measure",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Total Overtime Hours",
+          "canonical_name": "total_overtime_hours",
+          "data_type": "numeric",
+          "semantic_type": "measure",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Total Delay Minutes",
+          "canonical_name": "total_delay_minutes",
+          "data_type": "numeric",
+          "semantic_type": "measure",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        }
+      ]
+    },
+    {
+      "name": "tcc_sgs_flight_delay_view",
+      "label_en": "TCC SGS Flight Delay",
+      "label_ar": "تأخيرات الرحلات من مصدر SGS (TCC)",
+      "entity_type": "flight_delay",
+      "role": "analytics",
+      "description_en": "TCC-related delays from SGS flight delay table (codes 15I/15F/15X)",
+      "description_ar": "تأخيرات مرتبطة بـ TCC من جدول تأخيرات SGS (الأكواد 15I/15F/15X)",
+      "columns": [
+        {
+          "original_name": "flight_date",
+          "canonical_name": "flight_date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": false,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Airlines",
+          "canonical_name": "airlines",
+          "data_type": "text",
+          "semantic_type": "airline",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Flight Number",
+          "canonical_name": "flight_number",
+          "data_type": "text",
+          "semantic_type": "flight_number",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Destination",
+          "canonical_name": "destination",
+          "data_type": "text",
+          "semantic_type": "destination",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Gate",
+          "canonical_name": "gate",
+          "data_type": "text",
+          "semantic_type": "gate",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Shift",
+          "canonical_name": "shift",
+          "data_type": "text",
+          "semantic_type": "shift",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Flight Category",
+          "canonical_name": "flight_category",
+          "data_type": "text",
+          "semantic_type": "category",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "delay_minutes",
+          "canonical_name": "delay_minutes",
+          "data_type": "numeric",
+          "semantic_type": "duration_minute",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Delay Code",
+          "canonical_name": "delay_code",
+          "data_type": "text",
+          "semantic_type": "delay_code",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        }
+      ]
+    },
+    {
+      "name": "tcc_dep_flight_delay_view",
+      "label_en": "TCC Detailed Flight Delay",
+      "label_ar": "تأخيرات الرحلات التفصيلية - TCC",
+      "entity_type": "flight_delay",
+      "role": "analytics",
+      "description_en": "Detailed TCC delays with DM/Supervisor/Control/Employee and investigations",
+      "description_ar": "تأخيرات تفصيلية لـ TCC مع بيانات المدير المناوب، المشرف، الكونترول، الموظف والتحقيقات",
+      "columns": [
+        {
+          "original_name": "incident_id",
+          "canonical_name": "incident_id",
+          "data_type": "bigint",
+          "semantic_type": "event_id",
+          "is_nullable": false,
+          "is_primary_key": true,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "flight_date",
+          "canonical_name": "flight_date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": false,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Shift",
+          "canonical_name": "shift",
+          "data_type": "text",
+          "semantic_type": "shift",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Department",
+          "canonical_name": "department",
+          "data_type": "text",
+          "semantic_type": "org_unit",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Arrival Flight Number",
+          "canonical_name": "arrival_flight_number",
+          "data_type": "text",
+          "semantic_type": "flight_number",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "STA",
+          "canonical_name": "sta",
+          "data_type": "time",
+          "semantic_type": "time",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "ATA",
+          "canonical_name": "ata",
+          "data_type": "time",
+          "semantic_type": "time",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "arrival_delay_minutes",
+          "canonical_name": "arrival_delay_minutes",
+          "data_type": "numeric",
+          "semantic_type": "duration_minute",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Departure Flight Number",
+          "canonical_name": "departure_flight_number",
+          "data_type": "text",
+          "semantic_type": "flight_number",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "STD",
+          "canonical_name": "std",
+          "data_type": "time",
+          "semantic_type": "time",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "ATD",
+          "canonical_name": "atd",
+          "data_type": "time",
+          "semantic_type": "time",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "departure_delay_minutes",
+          "canonical_name": "departure_delay_minutes",
+          "data_type": "numeric",
+          "semantic_type": "duration_minute",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Duty Manager Name",
+          "canonical_name": "duty_manager_name",
+          "data_type": "text",
+          "semantic_type": "person_name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Supervisor Name",
+          "canonical_name": "supervisor_name",
+          "data_type": "text",
+          "semantic_type": "person_name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Control Name",
+          "canonical_name": "control_name",
+          "data_type": "text",
+          "semantic_type": "person_name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Employee ID",
+          "canonical_name": "employee_id",
+          "data_type": "bigint",
+          "semantic_type": "fk_employee",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": true,
+          "references": {
+            "table": "employee_master_db",
+            "column": "Employee ID"
+          }
+        },
+        {
+          "original_name": "Employee Name",
+          "canonical_name": "employee_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Investigation status",
+          "canonical_name": "investigation_status",
+          "data_type": "text",
+          "semantic_type": "status",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Final action",
+          "canonical_name": "final_action",
+          "data_type": "text",
+          "semantic_type": "action",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "incident_total_delay_minutes",
+          "canonical_name": "incident_total_delay_minutes",
+          "data_type": "numeric",
+          "semantic_type": "duration_minute",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        }
+      ]
+    },
+    {
+      "name": "employee_flight_delay_link_view",
+      "label_en": "Employee Flight Delay Link",
+      "label_ar": "ربط تأخيرات الرحلات مع الموظف",
+      "entity_type": "employee_flight_delay",
+      "role": "analytics",
+      "description_en": "Links employee master, summary and TCC delay incidents per employee",
+      "description_ar": "يربط بين الجدول الرئيسي للموظف وملخص الأداء وحوادث التأخير التشغيلية لكل موظف",
+      "columns": [
+        {
+          "original_name": "employee_id",
+          "canonical_name": "employee_id",
+          "data_type": "bigint",
+          "semantic_type": "fk_employee",
+          "is_nullable": false,
+          "is_primary_key": false,
+          "is_foreign_key": true,
+          "references": {
+            "table": "employee_master_db",
+            "column": "Employee ID"
+          }
+        },
+        {
+          "original_name": "employee_name",
+          "canonical_name": "employee_name",
+          "data_type": "text",
+          "semantic_type": "name",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "master_department",
+          "canonical_name": "master_department",
+          "data_type": "text",
+          "semantic_type": "org_unit",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Job Title",
+          "canonical_name": "job_title",
+          "data_type": "text",
+          "semantic_type": "category",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Hiring Date",
+          "canonical_name": "hiring_date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "incident_id",
+          "canonical_name": "incident_id",
+          "data_type": "bigint",
+          "semantic_type": "event_id",
+          "is_nullable": false,
+          "is_primary_key": false,
+          "is_foreign_key": true,
+          "references": {
+            "table": "dep_flight_delay",
+            "column": "Title"
+          }
+        },
+        {
+          "original_name": "flight_date",
+          "canonical_name": "flight_date",
+          "data_type": "date",
+          "semantic_type": "date",
+          "is_nullable": false,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Shift",
+          "canonical_name": "shift",
+          "data_type": "text",
+          "semantic_type": "shift",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Airlines",
+          "canonical_name": "airlines",
+          "data_type": "text",
+          "semantic_type": "airline",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Flight Direction",
+          "canonical_name": "flight_direction",
+          "data_type": "text",
+          "semantic_type": "direction",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "incident_total_delay_minutes",
+          "canonical_name": "incident_total_delay_minutes",
+          "data_type": "numeric",
+          "semantic_type": "duration_minute",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Total Sick Days",
+          "canonical_name": "total_sick_days",
+          "data_type": "numeric",
+          "semantic_type": "measure",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Total Absence Days",
+          "canonical_name": "total_absence_days",
+          "data_type": "numeric",
+          "semantic_type": "measure",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Total Overtime Hours",
+          "canonical_name": "total_overtime_hours",
+          "data_type": "numeric",
+          "semantic_type": "measure",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        },
+        {
+          "original_name": "Total Delay Minutes",
+          "canonical_name": "total_employee_delay_minutes",
+          "data_type": "numeric",
+          "semantic_type": "measure",
+          "is_nullable": true,
+          "is_primary_key": false,
+          "is_foreign_key": false
+        }
+      ]
+    }
+  ]
+}
