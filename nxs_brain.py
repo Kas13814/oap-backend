@@ -213,15 +213,12 @@ def call_ai(prompt: str, model_name: str = None, temperature: float = 0.4, max_t
     if not GEMINI_API_KEY:
         return "ERROR: GEMINI_API_KEY_MISSING"
 
-    # 1. تحديد الموديل: نستخدم الممرر للدالة أو المسجل في الإعدادات
-    target_model = model_name if model_name else (globals().get("GEMINI_MODEL_NAME") or globals().get("GEMINI_MODEL"))
+    # 1) تحديد الموديل: نستخدم الممرر للدالة أو المسجل في الإعدادات
+    target_model = model_name if model_name else GEMINI_MODEL_NAME
 
-    # إذا لم يكن هناك موديل مضبوط في المتغيرات، نستخدم قيمة افتراضية آمنة
-    if not target_model:
-        target_model = "gemini-1.5-pro"
-
-    # 2. الرابط الصحيح والمستقر (استخدام v1 بدلاً من v1beta)
+    # 2) الرابط الصحيح والمستقر (استخدام v1 بدلاً من v1beta)
     url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
+
     payload = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -252,6 +249,8 @@ def call_ai(prompt: str, model_name: str = None, temperature: float = 0.4, max_t
             continue
 
     return f"⚠️ المحرك مشغول حالياً. (Technical: {last_err})"
+
+
 def semantic_pre_analyze(user_message: str) -> Optional[Dict[str, Any]]:
     """
     تحليل مسبق باستخدام طبقة NXS Semantics (القاموس + المقاييس).
@@ -284,13 +283,22 @@ def build_planner_prompt(user_message: str, semantic_info: Optional[Dict[str, An
 
 
 def run_planner(user_message: str) -> Dict[str, Any]:
+    # Planner يجب أن يكون سريعاً ورخيصاً: نستخدم Flash دائماً هنا
     semantic_info = semantic_pre_analyze(user_message)
     prompt = build_planner_prompt(user_message, semantic_info)
-    raw = call_ai(prompt)
+
+    raw = call_ai(
+        prompt,
+        model_name="gemini-1.5-flash",
+        temperature=0.2,
+        max_tokens=1200,
+    )
+
     data = _safe_json_loads(raw)
     if not data or not isinstance(data, dict):
         # فشل التحليل، نعيد خطة فارغة لكن لا نكسر التنفيذ
         return {"language": "ar", "plan": [], "notes": "no-structured-plan", "semantic": semantic_info}
+
     # ضمان الحقول الأساسية
     lang = data.get("language") or "ar"
     if lang not in ("ar", "en"):
@@ -300,6 +308,7 @@ def run_planner(user_message: str) -> Dict[str, Any]:
         plan = []
     notes = data.get("notes") or ""
     return {"language": lang, "plan": plan, "notes": notes, "semantic": semantic_info}
+
 
 
 # =================== مرحلة 2: تنفيذ الخطة على Supabase ===================
