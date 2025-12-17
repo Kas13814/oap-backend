@@ -575,12 +575,6 @@ def root() -> Dict[str, Any]:
         "mode": "Context-Aware Persona",
     }
 
-
-@app.get("/health")
-def health() -> Dict[str, str]:
-    return {"status": "ok"}
-
-
 @app.post("/chat")
 def chat(req: ChatRequest) -> Dict[str, Any]:
     msg = (req.message or "").strip()
@@ -600,7 +594,19 @@ def chat(req: ChatRequest) -> Dict[str, Any]:
         }
 
 
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "service": "oap-backend",
+        "engine": "NXS",
+        "env": "cloud-run"
+    }
+
+
 if __name__ == "__main__":  # pragma: no cover
+    import os
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
