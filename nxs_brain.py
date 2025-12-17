@@ -206,19 +206,33 @@ def _safe_json_loads(text: str) -> Optional[dict]:
     return None
 
 
-def call_ai(prompt: str, temperature: float = 0.4, max_tokens: int = 1500) -> str:
-    import os, time, requests
 
-    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GENAI_API_KEY")
+def call_ai(
+    prompt: str,
+    model_type: str = "flash",
+    temperature: float = 0.4,
+    max_tokens: int = 1500,
+) -> str:
+    """
+    استدعاء Gemini عبر REST بشكل مستقر (v1) مع:
+    - Retry + Exponential Backoff عند 429/503
+    - Timeout واضح
+    - اختيار الموديل حسب نوع المهمة (pro / flash)
+    """
+    import time
+
+    api_key = GEMINI_API_KEY or os.getenv("GEMINI_API_KEY") or os.getenv("GENAI_API_KEY") or os.getenv("API_KEY")
     if not api_key:
-        raise RuntimeError("Missing API Key")
+        raise RuntimeError("Missing API Key (API_KEY / GEMINI_API_KEY / GENAI_API_KEY).")
 
-    # التعديل الذهبي: نستخدم Pro للتحليل العميق و Flash للمهام السريعة
-    # يمكنك التحكم بهذا عبر المتغيرات في Cloud Run
-    model = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-pro")
+    # ✅ اختيار الموديل حسب نوع المهمة (هجين اقتصادي)
+    if str(model_type).lower() == "pro":
+        target_model = "gemini-1.5-pro"
+    else:
+        target_model = "gemini-1.5-flash"
 
-    # التأكد من استخدام الإصدار المستقر v1
-    url = f"https://generativelanguage.googleapis.com/v1/models/{model}:generateContent?key={api_key}"
+    # ✅ استخدام الإصدار المستقر v1
+    url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={api_key}"
 
     payload = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
@@ -229,24 +243,206 @@ def call_ai(prompt: str, temperature: float = 0.4, max_tokens: int = 1500) -> st
         },
     }
 
+    max_retries = 3
     last_err = None
-    for attempt in range(3):  # تقليل المحاولات لزيادة السرعة مع زيادة وقت الانتظار
+
+    for attempt in range(max_retries):
         try:
-            r = requests.post(url, json=payload, timeout=30)
+            r = requests.post(url, json=payload, timeout=60)
+
             if r.status_code == 200:
                 data = r.json()
                 return data["candidates"][0]["content"]["parts"][0].get("text", "")
 
+            # ✅ إعادة المحاولة عند الضغط/تجاوز الحد
             if r.status_code in (429, 503):
-                time.sleep(2 * (attempt + 1))  # انتظار ذكي
+                wait_time = (2 ** attempt) + 1  # 2s, 3s, 5s
+                logger.warning(
+                    f"AI server busy (HTTP {r.status_code}). Retry {attempt+1}/{max_retries} after {wait_time}s..."
+                )
+                time.sleep(wait_time)
+                last_err = f"HTTP {r.status_code}: {r.text}"
                 continue
 
-            raise RuntimeError(f"AI Error {r.status_code}")
-        except Exception as e:
-            last_err = str(e)
-            continue
+            # أي خطأ آخر لا يحتاج إعادة محاولة
+            last_err = f"AI Error {r.status_code}: {r.text}"
+            break
 
-    return f"⚠️ المحرك مشغول حالياً. (Technical: {last_err})"
+        except requests.exceptions.RequestException as e:
+            last_err = f"Connection error: {e}"
+            logger.error(last_err)
+            time.sleep(2)
+
+    raise AIEngineError(last_err or "Unknown AI error")
+
+
+def call_ai_robust(
+    prompt: str,
+    temperature: float = 0.4,
+    max_tokens: int = 1500,
+) -> str:
+    """
+    التبديل التلقائي للموديل (Model Fallback):
+    - المحاولة أولاً بـ Pro للتحليل
+    - عند الفشل نتحول تلقائياً إلى Flash لضمان الاستمرارية
+    """
+    try:
+        return call_ai(prompt, model_type="pro", temperature=temperature, max_tokens=max_tokens)
+    except Exception as e:
+        logger.info("Auto-fallback to Flash to keep service alive. Reason: %s", e)
+        try:
+            return call_ai(prompt, model_type="flash", temperature=temperature, max_tokens=max_tokens)
+        except Exception as e2:
+            return f"⚠️ المحرك مشغول حالياً، يرجى المحاولة بعد لحظات. (Technical: {e2})"
+
+
+def json_to_markdown_table(data: Any) -> str:
+    """تحويل مخرجات Supabase إلى جداول Markdown ليفهمها Gemini بدقة أعلى"""
+    if not data or not isinstance(data, list) or len(data) == 0:
+        return str(data)
+
+    headers = list(data[0].keys())
+    header_row = "| " + " | ".join(headers) + " |"
+    separator_row = "| " + " | ".join(["---"] * len(headers)) + " |"
+
+    body_rows = []
+    for item in data:
+        row = "| " + " | ".join(str(item.get(h, "")) for h in headers) + " |"
+        body_rows.append(row)
+
+    return "\n".join([header_row, separator_row] + body_rows)
+
+
+def format_data_bundle_for_llm(data_bundle: Dict[str, Any]) -> str:
+    """تنسيق حزمة البيانات: القوائم كجداول Markdown والباقي كنص."""
+    if not isinstance(data_bundle, dict) or not data_bundle:
+        return str(data_bundle)
+
+    chunks: List[str] = []
+    for k, v in data_bundle.items():
+        chunks.append(f"### {k}")
+        if isinstance(v, list):
+            chunks.append(json_to_markdown_table(v))
+        else:
+            chunks.append(str(v))
+        chunks.append("")  # سطر فارغ للفصل
+    return "\n".join(chunks).strip()
+
+
+# =================== مرحلة 1: التخطيط الذكي ===================
+
+PLANNER_PROMPT = """
+أنت نواة تخطيط ذكية داخل نظام TCC AI • AirportOps AI.
+لديك القدرة على فهم سؤال المستخدم، وتحديد الجداول والوظائف المناسبة لجلب البيانات.
+
+متوفر أمامك دوال Python التالية للوصول إلى البيانات (عبر nxs_supabase_client):
+
+1) get_employee_info(employee_id: str) -> Dict
+   - يعيد معلومات أساسية عن الموظف: الاسم، القسم الحالي، المسمى الوظيفي، ...
+
+2) get_employee_delays(employee_id: str, start_date: str|None, end_date: str|None, limit: int)
+   - يعيد سجلات تأخير الرحلات المتعلقة بالموظف من سجلات مراقبة الحركة (dep_flight_delay).
+
+3) get_employee_absence(employee_id: str, start_date: str|None, end_date: str|None, limit: int)
+   - يعيد سجلات الغياب للموظف.
+
+4) get_employee_delay_log(employee_id: str, start_date: str|None, end_date: str|None, limit: int)
+   - يعيد سجلات تأخر الحضور (تأخير عن الدوام) من employee_delay.
+
+5) get_employee_overtime(employee_id: str, start_date: str|None, end_date: str|None, limit: int)
+   - يعيد سجلات العمل الإضافي.
+
+6) get_employee_sick_leave(employee_id: str, start_date: str|None, end_date: str|None, limit: int)
+   - يعيد سجلات الإجازات المرضية.
+
+7) get_employee_operational_events(employee_id: str, start_date: str|None, end_date: str|None, limit: int)
+   - يعيد الأحداث التشغيلية المرتبطة بالموظف (إجراءات، تحقيقات، ...).
+
+8) list_all_flight_delays(limit: int)
+   - يعيد سجلات تأخيرات الرحلات على مستوى المحطة والخدمات الأرضية (SGS) من sgs_flight_delay.
+
+9) list_dep_flight_delays(limit: int)
+   - يعيد سجلات تأخيرات الرحلات المرتبطة بمراقبة الحركة (TCC / FIC / LC ...) من dep_flight_delay.
+
+10) list_shift_report(limit: int)
+   - يعيد تقارير المناوبة (يمكن استخدامه عند الأسئلة عن On Duty / No Show / عدد الرحلات في الشفت).
+
+11) get_employee_count_by_department(department: str) -> int
+   - يعيد عدد الموظفين في قسم معين من employee_master_db.
+
+12) get_flight_delays_by_airline(airline: str, start_date: str|None, end_date: str|None, limit: int)
+   - يعيد جميع سجلات التأخير لشركة طيران معيّنة من جدول المحطة (SGS).
+   - استخدمه إذا سأل المستخدم عن "تأخيرات طيران ناس" أو "مشاكل فلاي أديل" أو "تأخيرات شركات الطيران".
+
+13) get_dep_delays_by_airline(airline: str, start_date: str|None, end_date: str|None, limit: int)
+   - يعيد سجلات التأخير لنفس شركة الطيران من جدول dep_flight_delay (مراقبة الحركة).
+
+14) get_dep_delays_by_department(department: str, start_date: str|None, end_date: str|None, limit: int)
+   - يعيد سجلات التأخيرات المسجَّلة على قسم معيّن مثل TCC أو LC Foreign أو "مراقبة الحركة".
+
+15) get_flight_delays_by_delay_code(delay_code: str, airline: str|None, start_date: str|None, end_date: str|None, limit: int)
+   - يعيد سجلات التأخير حسب كود التأخير (مثل 15I أو 33A) من sgs_flight_delay،
+     مع إمكانية حصرها على شركة طيران معيّنة وفترة محددة.
+
+16) get_dep_delays_by_delay_code(delay_code: str, airline: str|None, start_date: str|None, end_date: str|None, limit: int)
+   - نفس السابق ولكن من dep_flight_delay (مركز مراقبة الحركة).
+
+17) get_dep_flight_events_by_flight_number(flight_number: str, limit: int)
+   - يعيد كل سجلات dep_flight_delay لرحلة معيّنة برقمها (قدوم أو مغادرة)، مثل SV485 أو QR4890.
+
+18) get_sgs_flight_events_by_flight_number(flight_number: str, limit: int)
+   - يعيد كل سجلات sgs_flight_delay المطابقة لرقم الرحلة.
+
+كما يوجد قاموس أكواد تأخير للطيران (DELAY_CODE_MAP) داخل النظام يمكنك الاعتماد عليه
+لكن *أنت فقط تعطي خطة*، التنفيذ سيتم لاحقاً في الكود.
+
+المطلوب منك:
+- قراءة سؤال المستخدم حول الموظفين، الرحلات، التأخيرات، المناوبات، الأقسام، شركات الطيران، الأكواد، إلخ.
+- تحديد اللغة: "ar" أو "en".
+- استخراج أهم المعطيات إن وجدت: employee_id، airline، department، delay_code، flight_number، date_from، date_to، إلخ.
+- بناء خطة بسيطة كقائمة من الخطوات، كل خطوة تستدعي دالة واحدة من الدوال المذكورة أعلاه مع باراميترات مناسبة.
+
+مهم جداً:
+- إذا ذكر المستخدم رقم موظف، استخدم دوال get_employee_* المناسبة.
+- إذا ذكر شركة طيران (مثل "طيران ناس" أو "Flynas" أو "Flyadeal" أو "Saudia" أو "Saudi Airlines" أو "الخطوط السعودية")،
+  أو سأل عن "تأخيرات شركات الطيران" أو "مشاكل طيران ناس المتكررة" → استخدم
+  على الأقل واحدة من:
+  get_flight_delays_by_airline, get_dep_delays_by_airline, list_all_flight_delays, list_dep_flight_delays.
+- إذا ذكر كود تأخير (15I, 15F, 33A, 2R, ...)، استخدم
+  get_flight_delays_by_delay_code و/أو get_dep_delays_by_delay_code.
+- إذا ذكر قسم معيّن (TCC, LC Saudia, LC Foreign, مراقبة الحركة, ... ) واستخدم كلمة "تأخيرات"،
+  استخدم get_dep_delays_by_department.
+- إذا ذكر المستخدم رقم رحلة صريح مثل "SV485" أو "QR4890" أو "الرحلة 485"،
+  فالأولوية هي استدعاء:
+  get_dep_flight_events_by_flight_number و/أو get_sgs_flight_events_by_flight_number.
+
+صيغة الخطة النهائية (JSON فقط، بدون أي نص آخر):
+
+{
+  "language": "ar" أو "en",
+  "plan": [
+    {
+      "tool": "اسم_الدالة",
+      "args": {
+        "employee_id": "15013814",
+        "airline": "Flynas",
+        "department": "TCC",
+        "delay_code": "15I",
+        "flight_number": "SV485",
+        "start_date": "2024-01-01",
+        "end_date": "2024-12-31",
+        "limit": 200
+      }
+    }
+  ],
+  "notes": "ملاحظات مختصرة تساعد نموذج الإجابة على فهم الهدف من السؤال"
+}
+
+مهم جداً:
+- إذا كان السؤال عاماً جداً ولا يعتمد على بيانات فعلية، اجعل plan = [] فقط.
+- لا تكتب أي نص خارج JSON.
+"""
+
 
 
 def semantic_pre_analyze(user_message: str) -> Optional[Dict[str, Any]]:
@@ -283,7 +479,7 @@ def build_planner_prompt(user_message: str, semantic_info: Optional[Dict[str, An
 def run_planner(user_message: str) -> Dict[str, Any]:
     semantic_info = semantic_pre_analyze(user_message)
     prompt = build_planner_prompt(user_message, semantic_info)
-    raw = call_ai(prompt)
+    raw = call_ai(prompt, model_type="flash")
     data = _safe_json_loads(raw)
     if not data or not isinstance(data, dict):
         # فشل التحليل، نعيد خطة فارغة لكن لا نكسر التنفيذ
@@ -389,9 +585,9 @@ def build_answer_prompt(
         + user_message
         + "\n\nملاحظات مرحلة التخطيط:\n"
         + (planner_notes or "لا توجد ملاحظات مهمة.")
-        + "\n\nالبيانات المستخرجة من النظام (JSON) للاستخدام الداخلي في التحليل:\n"
-        + json.dumps(data_bundle, ensure_ascii=False)
-        + "\n\nالآن قدّم الإجابة النهائية للمستخدم بشكل منظم وواضح وعملي، بدون إظهار JSON أو تفاصيل برمجية:"
+        + "\n\nالبيانات المستخرجة من النظام (Markdown Tables) للاستخدام الداخلي في التحليل:\n"
+        + format_data_bundle_for_llm(data_bundle)
+        + "\n\nالآن قدّم الإجابة النهائية للمستخدم بشكل منظم وواضح وعملي، بدون إظهار البيانات الخام أو تفاصيل برمجية:"
     )
 
 
@@ -432,9 +628,15 @@ def nxs_brain(message: str) -> Tuple[str, Dict[str, Any]]:
             data_bundle=data_results,
         )
 
-        # 4) استدعاء محرك الذكاء لصياغة الإجابة
-        answer_text = call_ai(answer_prompt)
 
+        # 4) استدعاء محرك الذكاء لصياغة الإجابة (هجين اقتصادي: Flash للأسئلة المباشرة، Pro للمهام المعقدة)
+        complex_tasks = ["rca", "strategic", "analysis", "optimization"]
+        is_complex = any(task in str(planner_info).lower() for task in complex_tasks)
+
+        if is_complex:
+            answer_text = call_ai(answer_prompt, model_type="pro")
+        else:
+            answer_text = call_ai(answer_prompt, model_type="flash")
         meta.update(
             {
                 "ok": True,
@@ -791,65 +993,3 @@ def generate_strategic_plan(annual_manpower_cost: int = 75000, otp_increase: flo
     }
         
     return analysis_result, meta_data
-
-# =================================================================
-# تابع وظائف التحليل التخصصي (RCA) والخلاصة الاستراتيجية
-# =================================================================
-
-def run_comprehensive_ops_analysis() -> str:
-    """
-    هذه الدالة تجمع كافة التحليلات الفرعية لتقديم تقرير عملياتي شامل.
-    تستخدم في حال طلب المستخدم 'تقرير كامل' أو 'تحليل شامل للوضع'.
-    """
-    results = []
-
-    # 1. تحليل العمل الإضافي
-    ot_msg, ot_meta = run_tcc_overtime_rca()
-    results.append(ot_msg)
-
-    # 2. تحليل SGS والوقود
-    fuel_msg, fuel_meta = run_sgs_fueling_rca()
-    results.append(fuel_msg)
-
-    # 3. قياس الأثر والعائد
-    roi_msg, roi_meta = measure_impact_and_roi()
-    results.append(roi_msg)
-
-    return "\n\n".join(results)
-
-
-def build_strategic_recommendation_text(data: Dict[str, Any]) -> str:
-    """
-    صياغة التوصية الاستراتيجية النهائية بناءً على الأرقام المالية والتشغيلية.
-    تحول البيانات الجافة إلى نص استشاري رفيع المستوى.
-    """
-    total_capex_cost = data.get("total_capex", 0)
-
-    # افتراض قيم تشغيلية بناءً على هيكل النظام الأصلي
-    replacement_units = 5
-    staff_needed = 12
-    total_manpower_cost = 450000
-    MONTHLY_SAVINGS = 85000
-
-    return (
-        f"--- \n"
-        f"## 🛠️ خطة الإنفاق الرأسمالي (CAPEX) \n"
-        f"* **الهدف:** استبدال الأصول القديمة التي تسببت في تأخيرات GS-BAG.\n"
-        f"* **الوحدات المطلوبة:** استبدال {replacement_units} ناقلة أمتعة (Loaders).\n"
-        f"* **إجمالي CAPEX المطلوب:** **${total_capex_cost:,.2f}**.\n"
-        f"* **تبرير الاستثمار:** يمنع هذا الاستثمار خسارة **${MONTHLY_SAVINGS:,.2f}** دولار شهرياً ناتجة عن أعطال المعدات.\n\n"
-        f"--- \n"
-        f"## 🧑‍💻 خطة الموارد البشرية (Manpower) \n"
-        f"* **الهدف:** الحفاظ على سقف العمل الإضافي (OVT Cap) وتغطية متطلبات الغياب (TC-ABS).\n"
-        f"* **عدد الموظفين الجدد:** {staff_needed} موظف/ة لقسم TCC.\n"
-        f"* **الميزانية السنوية الإضافية:** **${total_manpower_cost:,.2f}**.\n"
-        f"* **تبرير التوظيف:** يضمن استقرار الأداء التشغيلي ويمنع أخطاء السلامة الناتجة عن الإرهاق.\n\n"
-        f"--- \n"
-        f"## 📈 الخلاصة النهائية\n"
-        f"تم التحقق من أن الاستثمار الاستراتيجي الكلي البالغ **${total_capex_cost + total_manpower_cost:,.2f}** "
-        f"سيؤدي إلى رفع مؤشر OTP بنسبة تتجاوز 9% خلال الربع القادم."
-    )
-
-# =================================================================
-# نهاية ملف nxs_brain.py
-# =================================================================
