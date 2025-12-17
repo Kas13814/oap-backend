@@ -347,23 +347,25 @@ SYSTEM_INSTRUCTION_TCC_ADVOCATE = """
 # =========================
 
 def call_gemini(prompt: str) -> str:
-    """
-    استدعاء آمن لنموذج Gemini، يعيد نصاً مبسطاً أو رسالة خطأ قياسية.
-    """
-    if not GEMINI_API_KEY:  # pragma: no cover - تحقّق إضافي احترازي
-        logger.error("Gemini API key missing at call time.")
-        return "Error: Gemini API key is not configured."
+    # استخدام الاتصال المباشر لضمان عدم تدخل v1beta
+    url = f"https://generativelanguage.googleapis.com/v1/models/{GEMINI_MODEL_NAME}:generateContent?key={GEMINI_API_KEY}"
+
+    payload = {
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2000}
+    }
 
     try:
-        resp = GEMINI_MODEL.generate_content(prompt)
-        text = (resp.text or "").strip()
-        if not text:
-            logger.warning("Gemini returned empty response.")
-            return "لم أتمكن من توليد إجابة مناسبة في هذه اللحظة."
-        return text
-    except Exception as exc:  # pragma: no cover - يعتمد على العميل الخارجي
-        logger.error("Gemini Error: %s", exc)
-        return "حدث خطأ في الاتصال بمحرك الذكاء الاصطناعي."
+        import requests
+        response = requests.post(url, json=payload, timeout=30)
+        if response.status_code == 200:
+            return response.json()['candidates'][0]['content']['parts'][0]['text']
+        else:
+            # هذا سيطبع لك الخطأ الحقيقي القادم من جوجل مباشرة
+            logger.error(f"API Error: {response.status_code} - {response.text}")
+            return "⚠️ تعذّر حالياً استخدام محرك التحليل."
+    except Exception as e:
+        return f"⚠️ خطأ في الاتصال: {str(e)}"
 
 
 def fetch_context_data(intent: str, f: Dict[str, Any]) -> Dict[str, Any]:
