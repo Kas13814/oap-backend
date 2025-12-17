@@ -232,7 +232,8 @@ def call_ai(
         target_model = "gemini-1.5-flash"
 
     # ✅ استخدام الإصدار المستقر v1
-      url = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+# ✅ استخدام الإصدار المستقر v1 لضمان توافق الموديلات
+    url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={api_key}"
 
     payload = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
