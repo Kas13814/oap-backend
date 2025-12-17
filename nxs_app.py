@@ -26,7 +26,6 @@ from typing import Any, Dict, List, Tuple, Optional
 import httpx
 import google.generativeai as genai
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from nxs_semantic_engine import NXSSemanticEngine, build_query_plan
@@ -111,9 +110,12 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 app = FastAPI(title="TCC AI • AirportOps", version="8.1.0")
 
+# ✅ الإضافة المطلوبة (مباشرة بعد إنشاء app)
+from fastapi.middleware.cors import CORSMiddleware
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # يمكن تقييدها لاحقاً في الإنتاج
+    allow_origins=["*"],   # للتجربة الآن فقط
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -609,4 +611,3 @@ if __name__ == "__main__":  # pragma: no cover
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
-
