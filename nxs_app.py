@@ -608,6 +608,17 @@ def health():
     }
 
 
+
+@app.get("/status")
+def status() -> Dict[str, Any]:
+    return {
+        "status": "running",
+        "engine": "NXS • AirportOps AI",
+        "mode": "Stable Turbo",
+        "version": "2.1-stable-turbo",
+        "revision": os.environ.get("K_REVISION", "unknown"),
+    }
+
 if __name__ == "__main__":  # pragma: no cover
     import os
     import uvicorn
