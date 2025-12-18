@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-nxs_app.py — TCC AI • AirportOps Analytic (v8.1 - Context-Aware Persona + Stable Core)
+nxs_app.py — OAP • AirportOps Analytic (v8.1 - Context-Aware Persona + Stable Core)
 -----------------------------------------------------------------------
 Backend powered by Gemini Pro + Supabase.
 
@@ -37,9 +37,9 @@ from nxs_semantic_engine import NXSSemanticEngine, build_query_plan
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] TCC-AI: %(message)s",
+    format="%(asctime)s [%(levelname)s] OAP-AI: %(message)s",
 )
-logger = logging.getLogger("tcc_ai")
+logger = logging.getLogger("oap_ai")
 
 
 # =========================
@@ -108,7 +108,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 #  5. تعريف تطبيق FastAPI
 # =========================
 
-app = FastAPI(title="TCC AI • AirportOps", version="8.1.0")
+app = FastAPI(title="OAP • AirportOps", version="8.1.0")
 
 # ✅ الإضافة المطلوبة (مباشرة بعد إنشاء app)
 from fastapi.middleware.cors import CORSMiddleware
@@ -276,7 +276,7 @@ SCHEMA_DATA: Dict[str, Any] = {
 # =========================
 
 PROMPT_CLASSIFIER = f"""
-أنت نظام TCC AI الذكي. لديك حق الوصول الكامل لقاعدة بيانات المطار (9 جداول) الموضحة أدناه:
+أنت نظام OAP AI الذكي. لديك حق الوصول الكامل لقاعدة بيانات المطار (9 جداول) الموضحة أدناه:
 {SCHEMA_SUMMARY}
 
 مهمتك:
@@ -304,7 +304,7 @@ PROMPT_CLASSIFIER = f"""
 
 
 SYSTEM_INSTRUCTION_HR_OPS = """
-أنت TCC AI، محلل عمليات مطار خبير. مهمتك: تقديم تحليل موثق، مختصر للغاية، واحترافي.
+أنت OAP AI، محلل عمليات مطار خبير. مهمتك: تقديم تحليل موثق، مختصر للغاية، واحترافي.
 
 قواعد الرد (الأولوية القصوى):
 1. الإيجاز والرد المباشر: الردود يجب أن تكون قصيرة جداً ومباشرة. إذا كان السؤال يطلب معلومة واحدة، أجب في سطر واحد دون أي هيكلة إضافية.
@@ -324,7 +324,7 @@ SYSTEM_INSTRUCTION_HR_OPS = """
 
 
 SYSTEM_INSTRUCTION_TCC_ADVOCATE = """
-أنت TCC AI، محامي مركز التحكم المروري (TCC). مهمتك: تقديم تحليل موثق، مختصر للغاية، ومهني، مع التركيز على الدفاع المنطقي عن TCC.
+أنت OAP AI، محامي مركز التحكم المروري (TCC). مهمتك: تقديم تحليل موثق، مختصر للغاية، ومهني، مع التركيز على الدفاع المنطقي عن TCC.
 
 قواعد الرد (الأولوية القصوى):
 1. منطق الدفاع الذكي: صافي مسؤولية TCC يجب أن يكون نتيجة للحساب: صافي مسؤولية TCC = (وقت المناولة الفعلي - معيار MGT). ركّز على التأخير الموروث أولاً ثم الانحراف الصافي عن المعيار كدفاع رئيسي.
@@ -573,7 +573,7 @@ Extracted Filters: {json.dumps(filters, ensure_ascii=False)}
 @app.get("/")
 def root() -> Dict[str, Any]:
     return {
-        "system": "TCC AI",
+        "system": "OAP - Operation Analytical Platform (KAS)",
         "version": "8.1.0",
         "status": "Online",
         "mode": "Context-Aware Persona",
