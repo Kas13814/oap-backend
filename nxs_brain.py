@@ -44,15 +44,6 @@ GEMINI_API_KEY = (
 )
 GEMINI_MODEL   = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-pro")
 
-VERTEX_PROJECT_ID = (
-    os.getenv("VERTEX_PROJECT_ID")
-    or os.getenv("GOOGLE_CLOUD_PROJECT")
-    or os.getenv("GCP_PROJECT")
-)
-VERTEX_LOCATION = os.getenv("VERTEX_LOCATION", "us-central1")
-# Prefer Vertex AI on GCP to avoid Gemini API free-tier quota limits (uses billing + service account).
-PREFER_VERTEX_AI = os.getenv("PREFER_VERTEX_AI", "1").strip() not in ("0", "false", "False")
-
 
 
 logger = logging.getLogger("nxs_brain")
@@ -216,25 +207,17 @@ def _safe_json_loads(text: str) -> Optional[dict]:
 
 
 def call_ai(prompt: str, model_name: str = None, temperature: float = 0.4, max_tokens: int = 2000) -> str:
-    """إرسال طلب إلى محرك الذكاء.
-
-    إصلاح المشكلة الحالية (HTTP 429 / limit=0):
-    - إذا كان التطبيق يعمل على Google Cloud Run / GCP ومعه Billing مفعّل، نستخدم Vertex AI تلقائياً
-      (يعتمد على Service Account بدلاً من Gemini API free-tier).
-    - نحتفظ بمسار Gemini API (api key) كحل احتياطي للتشغيل المحلي فقط.
-    """
+    """إرسال طلب إلى Google Gemini API."""
     import time
 
-    # 1) تحديد الموديل
-    target_model = model_name if model_name else GEMINI_MODEL
+    if not GEMINI_API_KEY:
+        return "ERROR: GEMINI_API_KEY_MISSING"
 
-    # 1.1) توافق أسماء قديمة بدون كسر باقي النظام
-    legacy_map = {
-        "gemini-1.5-flash": "gemini-2.0-flash",
-        "gemini-1.5-flash-8b": "gemini-2.0-flash",
-        "gemini-1.5-pro": "gemini-2.5-pro",
-    }
-    target_model = legacy_map.get(target_model, target_model)
+    # 1) تحديد الموديل: نستخدم الممرر للدالة أو المسجل في الإعدادات
+    target_model = model_name if model_name else GEMINI_MODEL_NAME
+
+    # 2) الرابط الصحيح والمستقر (استخدام v1 بدلاً من v1)
+    url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
 
     payload = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
@@ -245,62 +228,7 @@ def call_ai(prompt: str, model_name: str = None, temperature: float = 0.4, max_t
         },
     }
 
-    # ===================== (A) Vertex AI (مفضّل على GCP) =====================
-    def _get_gcp_access_token() -> str:
-        """يجلب Access Token من Metadata Server (يعمل فقط داخل Cloud Run/GCE)."""
-        try:
-            r = requests.get(
-                "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
-                headers={"Metadata-Flavor": "Google"},
-                timeout=3,
-            )
-            if r.status_code == 200:
-                return r.json().get("access_token", "")
-        except Exception:
-            pass
-        return ""
-
-    if PREFER_VERTEX_AI and VERTEX_PROJECT_ID:
-        token = _get_gcp_access_token()
-        if token:
-            vertex_url = (
-                f"https://{VERTEX_LOCATION}-aiplatform.googleapis.com/v1/"
-                f"projects/{VERTEX_PROJECT_ID}/locations/{VERTEX_LOCATION}/publishers/google/models/"
-                f"{target_model}:generateContent"
-            )
-
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-            }
-
-            last_err = None
-            for attempt in range(3):
-                try:
-                    response = requests.post(vertex_url, json=payload, headers=headers, timeout=30)
-                    if response.status_code == 200:
-                        result = response.json()
-                        return result["candidates"][0]["content"]["parts"][0].get("text", "")
-
-                    if response.status_code in (429, 503):
-                        time.sleep(2 * (attempt + 1))
-                        continue
-
-                    last_err = f"Vertex AI Error {response.status_code}: {response.text[:500]}"
-                    break
-                except Exception as e:
-                    last_err = str(e)
-                    time.sleep(2 * (attempt + 1))
-                    continue
-
-            return f"⚠️ المحرك مشغول حالياً. (Technical: {last_err})"
-
-    # ===================== (B) Gemini API (احتياطي) =====================
-    if not GEMINI_API_KEY:
-        return "ERROR: GEMINI_API_KEY_MISSING"
-
-    url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
-
+    # نظام الإعادة عند الفشل (Retry Logic)
     last_err = None
     for attempt in range(3):
         try:
@@ -313,7 +241,7 @@ def call_ai(prompt: str, model_name: str = None, temperature: float = 0.4, max_t
                 time.sleep(2 * (attempt + 1))
                 continue
 
-            last_err = f"AI Error {response.status_code}: {response.text[:500]}"
+            last_err = f"AI Error {response.status_code}"
             break
         except Exception as e:
             last_err = str(e)
@@ -321,6 +249,7 @@ def call_ai(prompt: str, model_name: str = None, temperature: float = 0.4, max_t
             continue
 
     return f"⚠️ المحرك مشغول حالياً. (Technical: {last_err})"
+
 
 def semantic_pre_analyze(user_message: str) -> Optional[Dict[str, Any]]:
     """
