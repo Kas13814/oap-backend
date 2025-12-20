@@ -24,7 +24,6 @@ import logging
 from typing import Any, Dict, List, Tuple, Optional
 
 import httpx
-import google.generativeai as genai
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -59,27 +58,13 @@ if not GEMINI_API_KEY:
         "تأكد من إضافته في Environment Variables (API_KEY أو GEMINI_API_KEY أو GENAI_API_KEY)."
     )
 
-logger.info("✅ Gemini API key detected, configuring client...")
+logger.info("✅ Gemini API key detected.")
 
-genai.configure(api_key=GEMINI_API_KEY)
-GEMINI_MODEL_NAME = "gemini-2.5-flash"
-
-# =========================
-#  Vertex AI settings (to avoid Gemini API free-tier quota=0)
-# =========================
-VERTEX_PROJECT_ID = (
-    os.getenv("VERTEX_PROJECT_ID")
-    or os.getenv("GOOGLE_CLOUD_PROJECT")
-    or os.getenv("GCP_PROJECT")
-)
-VERTEX_LOCATION = os.getenv("VERTEX_LOCATION", "us-central1")
-PREFER_VERTEX_AI = os.getenv("PREFER_VERTEX_AI", "1").strip() not in ("0", "false", "False")
-
-
-# نستخدم نموذجاً واحداً معاد الاستخدام لتقليل الحمل وتحسين الثبات
-GEMINI_MODEL = genai.GenerativeModel(GEMINI_MODEL_NAME)
-
-
+# ✅ IMPORTANT: Do NOT use the genai SDK client here.
+# Some older SDK versions may internally target v1.
+# We will use direct HTTPS calls (v1) inside call_gemini() to avoid 404/v1 issues.
+GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash")
+GEMINI_MODEL = None
 # =========================
 #  3. محرك NXS الدلالي (القاموس + المقاييس)
 # =========================
@@ -358,115 +343,28 @@ SYSTEM_INSTRUCTION_TCC_ADVOCATE = """
 # 11. دوال المساعدة (Gemini & Data)
 # =========================
 
-def call_gemini(prompt: str) -> str:
-    """Call the AI engine.
-
-    ✅ Fix for HTTP 429 (Gemini API free-tier limit=0):
-    - On Cloud Run/GCP (PREFER_VERTEX_AI=1): use Vertex AI via service account + billing.
-    - Only if PREFER_VERTEX_AI=0: allow Gemini API key fallback.
-    """
-    import time
+def call_gemini(prompt: str, use_pro: bool = False) -> str:
     import requests
+    # التبديل بين الموديلين بناءً على الطلب
+    target_model = "gemini-1.5-pro" if use_pro else "gemini-1.5-flash"
+
+    # استخدام بوابة v1 المستقرة لحل مشكلة 404
+    url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
 
     payload = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2000},
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048}
     }
 
-    # -------- (A) Vertex AI (preferred on GCP) --------
-    def _get_access_token() -> str:
-        """Get an OAuth access token using default credentials (best), then metadata fallback."""
-        # 1) Best: google-auth default credentials (works on Cloud Run)
-        try:
-            import google.auth
-            from google.auth.transport.requests import Request as GoogleAuthRequest
+    try:
+        response = requests.post(url, json=payload, timeout=30)
+        if response.status_code == 200:
+            return response.json()['candidates'][0]['content']['parts'][0]['text']
+        return f"⚠️ خطأ API: {response.status_code}"
+    except Exception as e:
+        return f"⚠️ فشل الاتصال: {str(e)}"
 
-            creds, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
-            creds.refresh(GoogleAuthRequest())
-            return getattr(creds, "token", "") or ""
-        except Exception:
-            pass
 
-        # 2) Fallback: metadata server
-        try:
-            r = requests.get(
-                "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
-                headers={"Metadata-Flavor": "Google"},
-                timeout=3,
-            )
-            if r.status_code == 200:
-                return r.json().get("access_token", "")
-        except Exception:
-            pass
-        return ""
-
-    if PREFER_VERTEX_AI and VERTEX_PROJECT_ID:
-        token = _get_access_token()
-        if not token:
-            logger.error("Vertex AI token missing (check Cloud Run service account & permissions).")
-            return "⚠️ تعذّر استخدام Vertex AI: لا يوجد Access Token. تأكد من صلاحيات Service Account على Vertex AI."
-
-        vertex_url = (
-            f"https://{VERTEX_LOCATION}-aiplatform.googleapis.com/v1/"
-            f"projects/{VERTEX_PROJECT_ID}/locations/{VERTEX_LOCATION}/publishers/google/models/"
-            f"{GEMINI_MODEL_NAME}:generateContent"
-        )
-        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-
-        last_err = None
-        for attempt in range(3):
-            try:
-                resp = requests.post(vertex_url, json=payload, headers=headers, timeout=45)
-                if resp.status_code == 200:
-                    j = resp.json()
-                    return j["candidates"][0]["content"]["parts"][0].get("text", "")
-
-                # retry on temporary issues
-                if resp.status_code in (429, 503):
-                    time.sleep(2 * (attempt + 1))
-                    continue
-
-                last_err = f"Vertex AI Error: {resp.status_code} - {resp.text[:800]}"
-                break
-            except Exception as e:
-                last_err = str(e)
-                time.sleep(2 * (attempt + 1))
-                continue
-
-        logger.error(last_err or "Vertex AI unknown error")
-        return f"⚠️ تعذّر حالياً استخدام محرك التحليل الذكي في الخلفية. (Vertex: {last_err})"
-
-    # -------- (B) Gemini API (fallback ONLY if PREFER_VERTEX_AI=0) --------
-    if PREFER_VERTEX_AI:
-        # do NOT fallback to Gemini API when user explicitly prefers Vertex
-        return "⚠️ تعذّر استخدام Vertex AI حالياً. تحقق من Vertex AI API وصلاحيات الخدمة."
-
-    if not GEMINI_API_KEY:
-        return "⚠️ تعذّر حالياً استخدام محرك التحليل."
-
-    url = f"https://generativelanguage.googleapis.com/v1/models/{GEMINI_MODEL_NAME}:generateContent?key={GEMINI_API_KEY}"
-
-    last_err = None
-    for attempt in range(3):
-        try:
-            resp = requests.post(url, json=payload, timeout=30)
-            if resp.status_code == 200:
-                j = resp.json()
-                return j["candidates"][0]["content"]["parts"][0].get("text", "")
-
-            if resp.status_code in (429, 503):
-                time.sleep(2 * (attempt + 1))
-                continue
-
-            last_err = f"API Error: {resp.status_code} - {resp.text[:800]}"
-            break
-        except Exception as e:
-            last_err = str(e)
-            time.sleep(2 * (attempt + 1))
-            continue
-
-    logger.error(last_err or "Gemini API unknown error")
-    return f"⚠️ تعذّر حالياً استخدام محرك التحليل. (Gemini API: {last_err})"
 
 def fetch_context_data(intent: str, f: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -599,7 +497,7 @@ def nxs_brain(user_msg: str) -> Tuple[str, Dict[str, Any]]:
     classifier_prompt_parts.append("\n\nUser Query: ")
     classifier_prompt_parts.append(msg)
 
-    raw_plan = call_gemini("".join(classifier_prompt_parts))
+    raw_plan = call_gemini("".join(classifier_prompt_parts), use_pro=False)
 
     try:
         clean_json = (
@@ -655,7 +553,7 @@ Extracted Filters: {json.dumps(filters, ensure_ascii=False)}
 قدّم الآن أفضل إجابة ممكنة للمستخدم، بصياغة مختصرة جداً وسلسة، وبلغته الأصلية.
 """
 
-    final_response = call_gemini(analyst_prompt)
+    final_response = call_gemini(analyst_prompt, use_pro=True)
     add_to_history("assistant", final_response)
 
     meta = {
