@@ -42,14 +42,16 @@ GEMINI_API_KEY = (
     or os.getenv("GEMINI_API_KEY")
     or os.getenv("GENAI_API_KEY")
 )
-GEMINI_MODEL   = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-pro")
-GEMINI_FLASH_MODEL = os.getenv("GEMINI_FLASH_MODEL", "gemini-2.5-flash")
-GEMINI_PRO_MODEL   = os.getenv("GEMINI_PRO_MODEL", GEMINI_MODEL)
+GEMINI_MODEL   = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash")
+
+
+
 logger = logging.getLogger("nxs_brain")
 
 
 try:
-    SEMANTIC_ENGINE: Optional[NXSSemanticEngine] = NXSSemanticEngine()
+    # NOTE: Forced OFF to avoid legacy SDK (v1beta) calls causing 404 with Pro models.
+    SEMANTIC_ENGINE: Optional[NXSSemanticEngine] = None
 except Exception:
     SEMANTIC_ENGINE = None
 
@@ -288,7 +290,7 @@ def run_planner(user_message: str) -> Dict[str, Any]:
 
     raw = call_ai(
         prompt,
-        model_name=GEMINI_FLASH_MODEL,
+        model_name="gemini-1.5-flash",
         temperature=0.2,
         max_tokens=1200,
     )
