@@ -42,7 +42,7 @@ GEMINI_API_KEY = (
     or os.getenv("GEMINI_API_KEY")
     or os.getenv("GENAI_API_KEY")
 )
-GEMINI_MODEL   = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+GEMINI_MODEL   = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-pro")
 
 
 
