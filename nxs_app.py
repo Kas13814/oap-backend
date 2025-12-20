@@ -24,6 +24,7 @@ import logging
 from typing import Any, Dict, List, Tuple, Optional
 
 import httpx
+import google.generativeai as genai
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -58,13 +59,13 @@ if not GEMINI_API_KEY:
         "تأكد من إضافته في Environment Variables (API_KEY أو GEMINI_API_KEY أو GENAI_API_KEY)."
     )
 
-logger.info("✅ Gemini API key detected.")
+logger.info("✅ Gemini API key detected, configuring client...")
 
-# ✅ IMPORTANT: Do NOT use the genai SDK client here.
-# Some older SDK versions may internally target v1.
-# We will use direct HTTPS calls (v1) inside call_gemini() to avoid 404/v1 issues.
-GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash")
-GEMINI_MODEL = None
+genai.configure(api_key=GEMINI_API_KEY)
+GEMINI_MODEL_NAME = "gemini-2.5-flash"
+
+# نستخدم نموذجاً واحداً معاد الاستخدام لتقليل الحمل وتحسين الثبات
+GEMINI_MODEL = None  # Disabled: using direct v1 HTTP calls in call_gemini()
 # =========================
 #  3. محرك NXS الدلالي (القاموس + المقاييس)
 # =========================
@@ -345,28 +346,24 @@ SYSTEM_INSTRUCTION_TCC_ADVOCATE = """
 
 def call_gemini(prompt: str, use_pro: bool = False) -> str:
     import requests
-    # اختيار الموديل
-    target = "gemini-1.5-pro" if use_pro else "gemini-1.5-flash"
-    
-    # التعديل الجوهري: استخدام v1 بدلاً من v1beta لحل مشكلة 404
-    url = f"https://generativelanguage.googleapis.com/v1/models/{target}:generateContent?key={GEMINI_API_KEY}"
-    
+    # التبديل بين الموديلين بناءً على الطلب
+    target_model = "gemini-1.5-pro" if use_pro else "gemini-1.5-flash"
+
+    # استخدام بوابة v1 المستقرة لحل مشكلة 404
+    url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
+
     payload = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.4}
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048}
     }
-    
+
     try:
         response = requests.post(url, json=payload, timeout=30)
         if response.status_code == 200:
             return response.json()['candidates'][0]['content']['parts'][0]['text']
-        else:
-            # هذا السطر سيطبع لك الخطأ الحقيقي إذا فشل
-            logger.error(f"API Fail: {response.status_code} - {response.text}")
-            return f"⚠️ خطأ في المحرك: {response.status_code}"
+        return f"⚠️ خطأ API: {response.status_code}"
     except Exception as e:
-        return f"⚠️ فشل اتصال: {str(e)}"
-
+        return f"⚠️ فشل الاتصال: {str(e)}"
 
 
 def fetch_context_data(intent: str, f: Dict[str, Any]) -> Dict[str, Any]:
@@ -500,7 +497,7 @@ def nxs_brain(user_msg: str) -> Tuple[str, Dict[str, Any]]:
     classifier_prompt_parts.append("\n\nUser Query: ")
     classifier_prompt_parts.append(msg)
 
-    raw_plan = call_gemini("".join(classifier_prompt_parts), use_pro=False)
+    raw_plan = call_gemini("".join(classifier_prompt_parts, use_pro=False))
 
     try:
         clean_json = (
