@@ -43,9 +43,8 @@ GEMINI_API_KEY = (
     or os.getenv("GENAI_API_KEY")
 )
 GEMINI_MODEL   = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-pro")
-
-
-
+GEMINI_FLASH_MODEL = os.getenv("GEMINI_FLASH_MODEL", "gemini-2.5-flash")
+GEMINI_PRO_MODEL   = os.getenv("GEMINI_PRO_MODEL", GEMINI_MODEL)
 logger = logging.getLogger("nxs_brain")
 
 
@@ -216,7 +215,7 @@ def call_ai(prompt: str, model_name: str = None, temperature: float = 0.4, max_t
     # 1) تحديد الموديل: نستخدم الممرر للدالة أو المسجل في الإعدادات
     target_model = model_name if model_name else GEMINI_MODEL_NAME
 
-    # 2) الرابط الصحيح والمستقر (استخدام v1 بدلاً من v1)
+    # 2) الرابط الصحيح والمستقر (استخدام v1 بدلاً من v1beta)
     url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
 
     payload = {
@@ -289,7 +288,7 @@ def run_planner(user_message: str) -> Dict[str, Any]:
 
     raw = call_ai(
         prompt,
-        model_name="gemini-1.5-flash",
+        model_name=GEMINI_FLASH_MODEL,
         temperature=0.2,
         max_tokens=1200,
     )
