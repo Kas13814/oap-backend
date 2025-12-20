@@ -58,13 +58,17 @@ if not GEMINI_API_KEY:
         "تأكد من إضافته في Environment Variables (API_KEY أو GEMINI_API_KEY أو GENAI_API_KEY)."
     )
 
-logger.info("✅ Gemini API key detected.")
+logger.info("✅ Gemini API key detected, configuring client...")
 
-# ✅ IMPORTANT: Do NOT use the genai SDK client here.
-# Some older SDK versions may internally target v1.
-# We will use direct HTTPS calls (v1) inside call_gemini() to avoid 404/v1 issues.
-GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash")
-GEMINI_MODEL = None
+genai.configure(api_key=GEMINI_API_KEY)
+GEMINI_FLASH_MODEL = os.getenv("GEMINI_FLASH_MODEL", os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash"))
+GEMINI_PRO_MODEL   = os.getenv("GEMINI_PRO_MODEL", "gemini-2.5-pro")
+# default model (fast/cheap)
+GEMINI_MODEL_NAME  = GEMINI_FLASH_MODEL
+# نستخدم نموذجاً واحداً معاد الاستخدام لتقليل الحمل وتحسين الثبات
+GEMINI_MODEL = genai.GenerativeModel(GEMINI_MODEL_NAME)
+
+
 # =========================
 #  3. محرك NXS الدلالي (القاموس + المقاييس)
 # =========================
@@ -344,29 +348,52 @@ SYSTEM_INSTRUCTION_TCC_ADVOCATE = """
 # =========================
 
 def call_gemini(prompt: str, use_pro: bool = False) -> str:
-    import requests
-    # اختيار موديلات متاحة حالياً (وفق ListModels في v1beta)
-    target = "gemini-2.5-pro" if use_pro else "gemini-2.0-flash"
-    
-    # استخدام v1beta لضمان التوافق مع قائمة النماذج المتاحة لديك
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{target}:generateContent?key={GEMINI_API_KEY}"
-    
+    """
+    Call Gemini via direct HTTP (stable v1).
+    - use_pro=False => fast/cheap model (Flash)
+    - use_pro=True  => stronger model (Pro)
+    """
+    if not GEMINI_API_KEY:
+        return "⚠️ مفتاح GEMINI غير موجود على الخادم."
+
+    target_model = GEMINI_PRO_MODEL if use_pro else GEMINI_FLASH_MODEL
+    url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
+
     payload = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.4}
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048},
     }
-    
+
     try:
+        # httpx موجود لديك في المشروع بالفعل
+        resp = httpx.post(url, json=payload, timeout=30)
+        if resp.status_code == 200:
+            data = resp.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        else:
+            # تسجيل الخطأ للمطور + إرجاع رسالة مختصرة للمستخدم
+            logger.error(f"AI engine HTTP {resp.status_code}: {resp.text}")
+            return f"⚠️ تعذّر حالياً استخدام محرك التحليل الذكي في الخلفية. (AI {resp.status_code})"
+    except Exception as e:
+        logger.exception("Gemini call failed")
+        return f"⚠️ فشل الاتصال بمحرك الذكاء: {str(e)}"
+
+    payload = {
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2000}
+    }
+
+    try:
+        import requests
         response = requests.post(url, json=payload, timeout=30)
         if response.status_code == 200:
             return response.json()['candidates'][0]['content']['parts'][0]['text']
         else:
-            # هذا السطر سيطبع لك الخطأ الحقيقي إذا فشل
-            logger.error(f"API Fail: {response.status_code} - {response.text}")
-            return f"⚠️ خطأ في المحرك: {response.status_code}"
+            # هذا سيطبع لك الخطأ الحقيقي القادم من جوجل مباشرة
+            logger.error(f"API Error: {response.status_code} - {response.text}")
+            return "⚠️ تعذّر حالياً استخدام محرك التحليل."
     except Exception as e:
-        return f"⚠️ فشل اتصال: {str(e)}"
-
+        return f"⚠️ خطأ في الاتصال: {str(e)}"
 
 
 def fetch_context_data(intent: str, f: Dict[str, Any]) -> Dict[str, Any]:
@@ -500,7 +527,7 @@ def nxs_brain(user_msg: str) -> Tuple[str, Dict[str, Any]]:
     classifier_prompt_parts.append("\n\nUser Query: ")
     classifier_prompt_parts.append(msg)
 
-    raw_plan = call_gemini("".join(classifier_prompt_parts), use_pro=False)
+    raw_plan = call_gemini("".join(classifier_prompt_parts))
 
     try:
         clean_json = (
@@ -556,7 +583,7 @@ Extracted Filters: {json.dumps(filters, ensure_ascii=False)}
 قدّم الآن أفضل إجابة ممكنة للمستخدم، بصياغة مختصرة جداً وسلسة، وبلغته الأصلية.
 """
 
-    final_response = call_gemini(analyst_prompt, use_pro=True)
+    final_response = call_gemini(analyst_prompt)
     add_to_history("assistant", final_response)
 
     meta = {
