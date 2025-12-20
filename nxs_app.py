@@ -29,7 +29,6 @@ from pydantic import BaseModel
 
 from nxs_semantic_engine import NXSSemanticEngine, build_query_plan
 
-
 # =========================
 #  1. إعداد السجل (Logging)
 # =========================
@@ -39,7 +38,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] OAP-AI: %(message)s",
 )
 logger = logging.getLogger("oap_ai")
-
 
 # =========================
 #  2. التحقق من مفتاح Gemini API
@@ -59,12 +57,9 @@ if not GEMINI_API_KEY:
     )
 
 logger.info("✅ Gemini API key detected, configuring client...")
-
-GEMINI_MODEL_NAME = "gemini-2.5-flash"
-
+GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash")
+GEMINI_PRO_MODEL_NAME = os.getenv("GEMINI_PRO_MODEL_NAME", "gemini-1.5-pro")
 # نستخدم نموذجاً واحداً معاد الاستخدام لتقليل الحمل وتحسين الثبات
-
-
 # =========================
 #  3. محرك NXS الدلالي (القاموس + المقاييس)
 # =========================
@@ -75,7 +70,6 @@ try:
 except Exception as exc:  # pragma: no cover - defensive
     SEMANTIC_ENGINE = None
     logger.warning("NXS Semantic Engine disabled: %s", exc)
-
 
 # =========================
 #  4. إعدادات Supabase
@@ -100,7 +94,6 @@ if not SUPABASE_URL or not SUPABASE_KEY:
         "Database-backed answers will return empty contexts."
     )
 
-
 # =========================
 #  5. تعريف تطبيق FastAPI
 # =========================
@@ -118,10 +111,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 class ChatRequest(BaseModel):
     message: str
-
 
 # =========================
 #  6. الذاكرة (Chat History)
@@ -129,7 +120,6 @@ class ChatRequest(BaseModel):
 
 CHAT_HISTORY: List[Dict[str, str]] = []
 MAX_HISTORY_MESSAGES = 15
-
 
 def add_to_history(role: str, content: str) -> None:
     content = (content or "").strip()
@@ -141,7 +131,6 @@ def add_to_history(role: str, content: str) -> None:
     if len(CHAT_HISTORY) > MAX_HISTORY_MESSAGES:
         del CHAT_HISTORY[0 : len(CHAT_HISTORY) - MAX_HISTORY_MESSAGES]
 
-
 def history_as_text() -> str:
     """
     تمثيل مبسط لتاريخ المحادثة يمرّر إلى النموذج
@@ -150,7 +139,6 @@ def history_as_text() -> str:
     if not CHAT_HISTORY:
         return "لا يوجد سجل حوار سابق."
     return "\n".join(f"{m['role']}: {m['content']}" for m in CHAT_HISTORY)
-
 
 # =========================
 #  7. طبقة البيانات (Supabase)
@@ -197,7 +185,6 @@ def supabase_select(
 
     return []
 
-
 # =========================
 #  8. وصف قاعدة البيانات (SCHEMA_SUMMARY)
 # =========================
@@ -215,7 +202,6 @@ SCHEMA_SUMMARY = """
 8. operational_event: "Title", "Shift", "Department", "Employee ID", "Employee Name", "Event Date", "Event Type", "Disciplinary Action", "InvestigationID", "Investigation status", "Manager Notes".
 9. shift_report: "Title", "Date", "Shift", "Department", "Control 1/2 ID/Name/Start/End", "Duty Manager Domestic/Intl/All Halls ID/Name", "Supervisor Domestic/Intl/All Halls ID/Name", "On Duty", "No Show", "Cars In/Out Service", "Wireless Devices In/Out Service", "Arrivals/Departures (Domestic/Intl)", "Delayed Arrivals/Departures", "Comments (Domestic/Intl/All Halls)".
 """
-
 
 # =========================
 #  9. المخطط المرجعي والبيانات الثابتة (SCHEMA_DATA)
@@ -267,7 +253,6 @@ SCHEMA_DATA: Dict[str, Any] = {
     ],
 }
 
-
 # =========================
 # 10. توجيهات الذكاء الاصطناعي (System Prompts)
 # =========================
@@ -299,7 +284,6 @@ PROMPT_CLASSIFIER = f"""
 إذا كان السؤال دردشة عامة، اجعل intent: "free_talk".
 """
 
-
 SYSTEM_INSTRUCTION_HR_OPS = """
 أنت OAP AI، محلل عمليات مطار خبير. مهمتك: تقديم تحليل موثق، مختصر للغاية، واحترافي.
 
@@ -319,7 +303,6 @@ SYSTEM_INSTRUCTION_HR_OPS = """
 أجب دائماً بنفس لغة المستخدم.
 """
 
-
 SYSTEM_INSTRUCTION_TCC_ADVOCATE = """
 أنت OAP AI، محامي مركز التحكم المروري (TCC). مهمتك: تقديم تحليل موثق، مختصر للغاية، ومهني، مع التركيز على الدفاع المنطقي عن TCC.
 
@@ -338,23 +321,15 @@ SYSTEM_INSTRUCTION_TCC_ADVOCATE = """
 أجب دائماً بنفس لغة المستخدم.
 """
 
-
 # =========================
 # 11. دوال المساعدة (Gemini & Data)
 # =========================
 
 def call_gemini(prompt: str, use_pro: bool = False) -> str:
-    """Call Gemini via direct HTTP v1 (avoids SDK v1beta issues).
-    - use_pro=False  -> uses GEMINI_MODEL_NAME (expected gemini-1.5-flash)
-    - use_pro=True   -> uses gemini-1.5-pro
-    """
+    """استدعاء Gemini عبر v1 (يتجنب v1beta) مع دعم Flash/Pro."""
     import requests
 
-    if not GEMINI_API_KEY:
-        return "⚠️ Gemini API key is missing."
-
-    target_model = "gemini-1.5-pro" if use_pro else (GEMINI_MODEL_NAME or "gemini-1.5-flash")
-
+    target_model = GEMINI_PRO_MODEL_NAME if use_pro else GEMINI_MODEL_NAME
     url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
 
     payload = {
@@ -363,16 +338,121 @@ def call_gemini(prompt: str, use_pro: bool = False) -> str:
     }
 
     try:
-        resp = requests.post(url, json=payload, timeout=30)
-        if resp.status_code == 200:
-            data = resp.json()
-            return data["candidates"][0]["content"]["parts"][0].get("text", "")
-        logger.error(f"Gemini HTTP {resp.status_code}: {resp.text}")
-        return f"⚠️ AI engine returned HTTP {resp.status_code}."
-    except Exception as e:
-        logger.exception("Gemini call failed")
-        return f"⚠️ فشل الاتصال: {str(e)}"
+        response = requests.post(url, json=payload, timeout=30)
 
+        # إذا كان هناك Rate Limit جرّب مرة واحدة بعد الانتظار إن توفر في الرسالة
+        if response.status_code == 429:
+            try:
+                import time
+                time.sleep(2)
+                response = requests.post(url, json=payload, timeout=30)
+            except Exception:
+                pass
+
+        if response.status_code == 200:
+            return response.json()["candidates"][0]["content"]["parts"][0]["text"]
+        else:
+            logger.error(f"AI Error: {response.status_code} - {response.text}")
+            return "⚠️ تعذّر الاتصال بالمحرك."
+    except Exception as e:
+        logger.error(f"AI Exception: {str(e)}")
+        return "⚠️ خطأ فني في التحليل."
+
+def fetch_context_data(intent: str, f: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    دالة ذكية تجلب البيانات المترابطة بناءً على السياق والنية المستخرجة.
+    """
+    data_bundle: Dict[str, Any] = {}
+
+    # 1. سياق الموظف (ملف، غياب، تأخير، أحداث، تحقيقات، عمل إضافي)
+    if f.get("employee_id"):
+        eid = f["employee_id"]
+        data_bundle["profile"] = supabase_select(
+            "employee_master_db", {"Employee ID": f"eq.{eid}"}, 1
+        )
+        data_bundle["overtime"] = supabase_select(
+            "employee_overtime", {"Employee ID": f"eq.{eid}"}, 20
+        )
+        data_bundle["absence"] = supabase_select(
+            "employee_absence", {"Employee ID": f"eq.{eid}"}, 20
+        )
+        data_bundle["delays"] = supabase_select(
+            "employee_delay", {"Employee ID": f"eq.{eid}"}, 20
+        )
+        data_bundle["sick_leaves"] = supabase_select(
+            "employee_sick_leave", {"Employee ID": f"eq.{eid}"}, 20
+        )
+        data_bundle["ops_events"] = supabase_select(
+            "operational_event", {"Employee ID": f"eq.{eid}"}, 20
+        )
+        data_bundle["flight_issues"] = supabase_select(
+            "dep_flight_delay", {"Employee ID": f"eq.{eid}"}, 20
+        )
+
+    # 2. سياق الرحلات (SGS + DEP) - محدث للدفاع
+    elif f.get("flight_number") or intent in {"flight_analysis", "mgt_compliance"}:
+        fn = f.get("flight_number")
+
+        # بيانات الخدمات الأرضية
+        if fn:
+            data_bundle["sgs_info"] = supabase_select(
+                "sgs_flight_delay", {"Flight Number": f"eq.{fn}"}, 10
+            )
+
+            # بيانات التحكم (قدوم ومغادرة)
+            dep_dep = supabase_select(
+                "dep_flight_delay", {"Departure Flight Number": f"eq.{fn}"}, 10
+            )
+            dep_arr = supabase_select(
+                "dep_flight_delay", {"Arrival Flight Number": f"eq.{fn}"}, 10
+            )
+            data_bundle["dep_control_info"] = dep_dep + dep_arr
+
+        # معايير التحليل والدفاع
+        data_bundle["TCC_Defense_Domain"] = SCHEMA_DATA.get(
+            "traffic_control_center"
+        )
+        data_bundle["Delay_Codes_Reference"] = SCHEMA_DATA.get(
+            "delay_codes_reference"
+        )
+        data_bundle["MGT_Standards_Reference"] = SCHEMA_DATA.get("mgt_standards")
+
+        # افتراض نوع الطائرة إذا لم يحدَّد في الفلاتر
+        if "aircraft_type" not in f:
+            f["aircraft_type"] = "A321/A320"
+
+    # 3. سياق القسم / المناوبة (Shift Reports & Stats)
+    elif f.get("department") or "shift" in intent or "report" in intent:
+        dept = f.get("department")
+        filters: Dict[str, str] = {"Department": f"eq.{dept}"} if dept else {}
+
+        if f.get("date_from"):
+            filters["Date"] = f"gte.{f['date_from']}"
+
+        data_bundle["shift_reports"] = supabase_select("shift_report", filters, 10)
+        if dept:
+            data_bundle["dept_overtime_sample"] = supabase_select(
+                "employee_overtime", filters, 10
+            )
+            data_bundle["dept_absence_sample"] = supabase_select(
+                "employee_absence", filters, 10
+            )
+
+    # 4. سياق شركة الطيران
+    elif f.get("airline"):
+        air = f["airline"]
+        data_bundle["airline_delays_sgs"] = supabase_select(
+            "sgs_flight_delay", {"Airlines": f"eq.{air}"}, 20
+        )
+        data_bundle["airline_delays_dep"] = supabase_select(
+            "dep_flight_delay", {"Airlines": f"eq.{air}"}, 20
+        )
+
+    return data_bundle
+
+# =========================
+# 12. المحرك الرئيسي (NXS Brain)
+# =========================
 
 def nxs_brain(user_msg: str) -> Tuple[str, Dict[str, Any]]:
     """
@@ -408,7 +488,7 @@ def nxs_brain(user_msg: str) -> Tuple[str, Dict[str, Any]]:
     classifier_prompt_parts.append("\n\nUser Query: ")
     classifier_prompt_parts.append(msg)
 
-    raw_plan = call_gemini("".join(classifier_prompt_parts), use_pro=False)
+    raw_plan = call_gemini("".join(classifier_prompt_parts))
 
     try:
         clean_json = (
@@ -464,7 +544,7 @@ Extracted Filters: {json.dumps(filters, ensure_ascii=False)}
 قدّم الآن أفضل إجابة ممكنة للمستخدم، بصياغة مختصرة جداً وسلسة، وبلغته الأصلية.
 """
 
-    final_response = call_gemini(analyst_prompt, use_pro=True)
+    final_response = call_gemini(analyst_prompt)
     add_to_history("assistant", final_response)
 
     meta = {
@@ -473,7 +553,6 @@ Extracted Filters: {json.dumps(filters, ensure_ascii=False)}
         "semantic": semantic_info,
     }
     return final_response, meta
-
 
 # =========================
 # 13. نقاط النهاية (Endpoints)
@@ -506,7 +585,6 @@ def chat(req: ChatRequest) -> Dict[str, Any]:
             "meta": {"error": str(exc)},
         }
 
-
 @app.get("/health")
 def health():
     return {
@@ -515,8 +593,6 @@ def health():
         "engine": "NXS",
         "env": "cloud-run"
     }
-
-
 
 @app.get("/status")
 def status() -> Dict[str, Any]:
