@@ -361,9 +361,9 @@ SYSTEM_INSTRUCTION_TCC_ADVOCATE = """
 def call_gemini(prompt: str) -> str:
     """Call the AI engine.
 
-    Fix for HTTP 429 (free-tier limit=0):
-    - On Cloud Run/GCP: use Vertex AI via service account + billing.
-    - Fallback to Gemini API key for local/dev only.
+    ✅ Fix for HTTP 429 (Gemini API free-tier limit=0):
+    - On Cloud Run/GCP (PREFER_VERTEX_AI=1): use Vertex AI via service account + billing.
+    - Only if PREFER_VERTEX_AI=0: allow Gemini API key fallback.
     """
     import time
     import requests
@@ -374,7 +374,20 @@ def call_gemini(prompt: str) -> str:
     }
 
     # -------- (A) Vertex AI (preferred on GCP) --------
-    def _get_gcp_access_token() -> str:
+    def _get_access_token() -> str:
+        """Get an OAuth access token using default credentials (best), then metadata fallback."""
+        # 1) Best: google-auth default credentials (works on Cloud Run)
+        try:
+            import google.auth
+            from google.auth.transport.requests import Request as GoogleAuthRequest
+
+            creds, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+            creds.refresh(GoogleAuthRequest())
+            return getattr(creds, "token", "") or ""
+        except Exception:
+            pass
+
+        # 2) Fallback: metadata server
         try:
             r = requests.get(
                 "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
@@ -388,38 +401,46 @@ def call_gemini(prompt: str) -> str:
         return ""
 
     if PREFER_VERTEX_AI and VERTEX_PROJECT_ID:
-        token = _get_gcp_access_token()
-        if token:
-            vertex_url = (
-                f"https://{VERTEX_LOCATION}-aiplatform.googleapis.com/v1/"
-                f"projects/{VERTEX_PROJECT_ID}/locations/{VERTEX_LOCATION}/publishers/google/models/"
-                f"{GEMINI_MODEL_NAME}:generateContent"
-            )
-            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        token = _get_access_token()
+        if not token:
+            logger.error("Vertex AI token missing (check Cloud Run service account & permissions).")
+            return "⚠️ تعذّر استخدام Vertex AI: لا يوجد Access Token. تأكد من صلاحيات Service Account على Vertex AI."
 
-            last_err = None
-            for attempt in range(3):
-                try:
-                    resp = requests.post(vertex_url, json=payload, headers=headers, timeout=30)
-                    if resp.status_code == 200:
-                        j = resp.json()
-                        return j["candidates"][0]["content"]["parts"][0].get("text", "")
+        vertex_url = (
+            f"https://{VERTEX_LOCATION}-aiplatform.googleapis.com/v1/"
+            f"projects/{VERTEX_PROJECT_ID}/locations/{VERTEX_LOCATION}/publishers/google/models/"
+            f"{GEMINI_MODEL_NAME}:generateContent"
+        )
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
-                    if resp.status_code in (429, 503):
-                        time.sleep(2 * (attempt + 1))
-                        continue
+        last_err = None
+        for attempt in range(3):
+            try:
+                resp = requests.post(vertex_url, json=payload, headers=headers, timeout=45)
+                if resp.status_code == 200:
+                    j = resp.json()
+                    return j["candidates"][0]["content"]["parts"][0].get("text", "")
 
-                    last_err = f"Vertex AI Error: {resp.status_code} - {resp.text}"
-                    break
-                except Exception as e:
-                    last_err = str(e)
+                # retry on temporary issues
+                if resp.status_code in (429, 503):
                     time.sleep(2 * (attempt + 1))
                     continue
 
-            logger.error(last_err or "Vertex AI unknown error")
-            return "⚠️ تعذّر حالياً استخدام محرك التحليل."
+                last_err = f"Vertex AI Error: {resp.status_code} - {resp.text[:800]}"
+                break
+            except Exception as e:
+                last_err = str(e)
+                time.sleep(2 * (attempt + 1))
+                continue
 
-    # -------- (B) Gemini API (fallback) --------
+        logger.error(last_err or "Vertex AI unknown error")
+        return f"⚠️ تعذّر حالياً استخدام محرك التحليل الذكي في الخلفية. (Vertex: {last_err})"
+
+    # -------- (B) Gemini API (fallback ONLY if PREFER_VERTEX_AI=0) --------
+    if PREFER_VERTEX_AI:
+        # do NOT fallback to Gemini API when user explicitly prefers Vertex
+        return "⚠️ تعذّر استخدام Vertex AI حالياً. تحقق من Vertex AI API وصلاحيات الخدمة."
+
     if not GEMINI_API_KEY:
         return "⚠️ تعذّر حالياً استخدام محرك التحليل."
 
@@ -437,7 +458,7 @@ def call_gemini(prompt: str) -> str:
                 time.sleep(2 * (attempt + 1))
                 continue
 
-            last_err = f"API Error: {resp.status_code} - {resp.text}"
+            last_err = f"API Error: {resp.status_code} - {resp.text[:800]}"
             break
         except Exception as e:
             last_err = str(e)
@@ -445,7 +466,7 @@ def call_gemini(prompt: str) -> str:
             continue
 
     logger.error(last_err or "Gemini API unknown error")
-    return "⚠️ تعذّر حالياً استخدام محرك التحليل."
+    return f"⚠️ تعذّر حالياً استخدام محرك التحليل. (Gemini API: {last_err})"
 
 def fetch_context_data(intent: str, f: Dict[str, Any]) -> Dict[str, Any]:
     """
