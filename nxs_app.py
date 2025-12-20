@@ -24,7 +24,6 @@ import logging
 from typing import Any, Dict, List, Tuple, Optional
 
 import httpx
-import google.generativeai as genai
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -59,28 +58,13 @@ if not GEMINI_API_KEY:
         "تأكد من إضافته في Environment Variables (API_KEY أو GEMINI_API_KEY أو GENAI_API_KEY)."
     )
 
-logger.info("✅ Gemini API key detected, configuring client...")
+logger.info("✅ Gemini API key detected.")
 
-# NOTE: Disabled google.generativeai SDK model init to avoid v1beta routing issues in some environments.
-# Gemini calls are handled via direct REST (v1) in call_gemini() below.
-
-# =========================
-#  Vertex AI settings (to avoid Gemini API free-tier quota=0)
-# =========================
-VERTEX_PROJECT_ID = (
-    os.getenv("VERTEX_PROJECT_ID")
-    or os.getenv("GOOGLE_CLOUD_PROJECT")
-    or os.getenv("GCP_PROJECT")
-)
-VERTEX_LOCATION = os.getenv("VERTEX_LOCATION", "us-central1")
-PREFER_VERTEX_AI = os.getenv("PREFER_VERTEX_AI", "1").strip() not in ("0", "false", "False")
-
-
-# نستخدم نموذجاً واحداً معاد الاستخدام لتقليل الحمل وتحسين الثبات
-# NOTE: Disabled SDK model init to avoid v1beta routing issues. Use call_gemini() REST v1 instead.
+# ✅ IMPORTANT: Do NOT use the genai SDK client here.
+# Some older SDK versions may internally target v1.
+# We will use direct HTTPS calls (v1) inside call_gemini() to avoid 404/v1 issues.
+GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash")
 GEMINI_MODEL = None
-
-
 # =========================
 #  3. محرك NXS الدلالي (القاموس + المقاييس)
 # =========================
@@ -360,34 +344,31 @@ SYSTEM_INSTRUCTION_TCC_ADVOCATE = """
 # =========================
 
 def call_gemini(prompt: str, use_pro: bool = False) -> str:
-    """Gemini via direct REST v1 (avoids SDK v1beta issues) with dual-model switching.
-
-    - Flash/default model: GEMINI_MODEL_NAME (recommended: gemini-1.5-flash)
-    - Pro model (for deep analysis): gemini-1.5-pro
-    """
     import requests
-
-    if not GEMINI_API_KEY:
-        return "⚠️ تعذّر الاتصال بالمحرك (مفتاح Gemini غير موجود)."
-
-    target_model = "gemini-1.5-pro" if use_pro else (GEMINI_MODEL_NAME or "gemini-1.5-flash")
-    url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
-
+    # اختيار موديلات متاحة حالياً (وفق ListModels في v1beta)
+    target = "gemini-2.5-pro" if use_pro else "gemini-2.0-flash"
+    
+    # استخدام v1beta لضمان التوافق مع قائمة النماذج المتاحة لديك
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{target}:generateContent?key={GEMINI_API_KEY}"
+    
     payload = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048},
+        "generationConfig": {"temperature": 0.4}
     }
-
+    
     try:
-        resp = requests.post(url, json=payload, timeout=30)
-        if resp.status_code == 200:
-            data = resp.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"]
-        logger.error(f"Gemini REST error: {resp.status_code} - {resp.text}")
-        return f"⚠️ خطأ في محرك Gemini: {resp.status_code}"
+        response = requests.post(url, json=payload, timeout=30)
+        if response.status_code == 200:
+            return response.json()['candidates'][0]['content']['parts'][0]['text']
+        else:
+            # هذا السطر سيطبع لك الخطأ الحقيقي إذا فشل
+            logger.error(f"API Fail: {response.status_code} - {response.text}")
+            return f"⚠️ خطأ في المحرك: {response.status_code}"
     except Exception as e:
-        logger.exception("Gemini REST exception")
-        return f"⚠️ فشل الاتصال بالمحرك: {str(e)}"
+        return f"⚠️ فشل اتصال: {str(e)}"
+
+
+
 def fetch_context_data(intent: str, f: Dict[str, Any]) -> Dict[str, Any]:
     """
     دالة ذكية تجلب البيانات المترابطة بناءً على السياق والنية المستخرجة.
