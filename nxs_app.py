@@ -345,24 +345,27 @@ SYSTEM_INSTRUCTION_TCC_ADVOCATE = """
 
 def call_gemini(prompt: str, use_pro: bool = False) -> str:
     import requests
-    # التبديل بين الموديلين بناءً على الطلب
-    target_model = "gemini-1.5-pro" if use_pro else "gemini-1.5-flash"
-
-    # استخدام بوابة v1 المستقرة لحل مشكلة 404
-    url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
-
+    # اختيار الموديل
+    target = "gemini-1.5-pro" if use_pro else "gemini-1.5-flash"
+    
+    # التعديل الجوهري: استخدام v1 بدلاً من v1beta لحل مشكلة 404
+    url = f"https://generativelanguage.googleapis.com/v1/models/{target}:generateContent?key={GEMINI_API_KEY}"
+    
     payload = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048}
+        "generationConfig": {"temperature": 0.4}
     }
-
+    
     try:
         response = requests.post(url, json=payload, timeout=30)
         if response.status_code == 200:
             return response.json()['candidates'][0]['content']['parts'][0]['text']
-        return f"⚠️ خطأ API: {response.status_code}"
+        else:
+            # هذا السطر سيطبع لك الخطأ الحقيقي إذا فشل
+            logger.error(f"API Fail: {response.status_code} - {response.text}")
+            return f"⚠️ خطأ في المحرك: {response.status_code}"
     except Exception as e:
-        return f"⚠️ فشل الاتصال: {str(e)}"
+        return f"⚠️ فشل اتصال: {str(e)}"
 
 
 
