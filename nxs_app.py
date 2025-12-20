@@ -24,7 +24,6 @@ import logging
 from typing import Any, Dict, List, Tuple, Optional
 
 import httpx
-import google.generativeai as genai
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -61,11 +60,11 @@ if not GEMINI_API_KEY:
 
 logger.info("✅ Gemini API key detected, configuring client...")
 
-genai.configure(api_key=GEMINI_API_KEY)
 GEMINI_MODEL_NAME = "gemini-2.5-flash"
 
 # نستخدم نموذجاً واحداً معاد الاستخدام لتقليل الحمل وتحسين الثبات
-GEMINI_MODEL = None  # Disabled: using direct v1 HTTP calls in call_gemini()
+
+
 # =========================
 #  3. محرك NXS الدلالي (القاموس + المقاييس)
 # =========================
@@ -345,123 +344,35 @@ SYSTEM_INSTRUCTION_TCC_ADVOCATE = """
 # =========================
 
 def call_gemini(prompt: str, use_pro: bool = False) -> str:
+    """Call Gemini via direct HTTP v1 (avoids SDK v1beta issues).
+    - use_pro=False  -> uses GEMINI_MODEL_NAME (expected gemini-1.5-flash)
+    - use_pro=True   -> uses gemini-1.5-pro
+    """
     import requests
-    # التبديل بين الموديلين بناءً على الطلب
-    target_model = "gemini-1.5-pro" if use_pro else "gemini-1.5-flash"
 
-    # استخدام بوابة v1 المستقرة لحل مشكلة 404
+    if not GEMINI_API_KEY:
+        return "⚠️ Gemini API key is missing."
+
+    target_model = "gemini-1.5-pro" if use_pro else (GEMINI_MODEL_NAME or "gemini-1.5-flash")
+
     url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
 
     payload = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048}
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048},
     }
 
     try:
-        response = requests.post(url, json=payload, timeout=30)
-        if response.status_code == 200:
-            return response.json()['candidates'][0]['content']['parts'][0]['text']
-        return f"⚠️ خطأ API: {response.status_code}"
+        resp = requests.post(url, json=payload, timeout=30)
+        if resp.status_code == 200:
+            data = resp.json()
+            return data["candidates"][0]["content"]["parts"][0].get("text", "")
+        logger.error(f"Gemini HTTP {resp.status_code}: {resp.text}")
+        return f"⚠️ AI engine returned HTTP {resp.status_code}."
     except Exception as e:
+        logger.exception("Gemini call failed")
         return f"⚠️ فشل الاتصال: {str(e)}"
 
-
-def fetch_context_data(intent: str, f: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    دالة ذكية تجلب البيانات المترابطة بناءً على السياق والنية المستخرجة.
-    """
-    data_bundle: Dict[str, Any] = {}
-
-    # 1. سياق الموظف (ملف، غياب، تأخير، أحداث، تحقيقات، عمل إضافي)
-    if f.get("employee_id"):
-        eid = f["employee_id"]
-        data_bundle["profile"] = supabase_select(
-            "employee_master_db", {"Employee ID": f"eq.{eid}"}, 1
-        )
-        data_bundle["overtime"] = supabase_select(
-            "employee_overtime", {"Employee ID": f"eq.{eid}"}, 20
-        )
-        data_bundle["absence"] = supabase_select(
-            "employee_absence", {"Employee ID": f"eq.{eid}"}, 20
-        )
-        data_bundle["delays"] = supabase_select(
-            "employee_delay", {"Employee ID": f"eq.{eid}"}, 20
-        )
-        data_bundle["sick_leaves"] = supabase_select(
-            "employee_sick_leave", {"Employee ID": f"eq.{eid}"}, 20
-        )
-        data_bundle["ops_events"] = supabase_select(
-            "operational_event", {"Employee ID": f"eq.{eid}"}, 20
-        )
-        data_bundle["flight_issues"] = supabase_select(
-            "dep_flight_delay", {"Employee ID": f"eq.{eid}"}, 20
-        )
-
-    # 2. سياق الرحلات (SGS + DEP) - محدث للدفاع
-    elif f.get("flight_number") or intent in {"flight_analysis", "mgt_compliance"}:
-        fn = f.get("flight_number")
-
-        # بيانات الخدمات الأرضية
-        if fn:
-            data_bundle["sgs_info"] = supabase_select(
-                "sgs_flight_delay", {"Flight Number": f"eq.{fn}"}, 10
-            )
-
-            # بيانات التحكم (قدوم ومغادرة)
-            dep_dep = supabase_select(
-                "dep_flight_delay", {"Departure Flight Number": f"eq.{fn}"}, 10
-            )
-            dep_arr = supabase_select(
-                "dep_flight_delay", {"Arrival Flight Number": f"eq.{fn}"}, 10
-            )
-            data_bundle["dep_control_info"] = dep_dep + dep_arr
-
-        # معايير التحليل والدفاع
-        data_bundle["TCC_Defense_Domain"] = SCHEMA_DATA.get(
-            "traffic_control_center"
-        )
-        data_bundle["Delay_Codes_Reference"] = SCHEMA_DATA.get(
-            "delay_codes_reference"
-        )
-        data_bundle["MGT_Standards_Reference"] = SCHEMA_DATA.get("mgt_standards")
-
-        # افتراض نوع الطائرة إذا لم يحدَّد في الفلاتر
-        if "aircraft_type" not in f:
-            f["aircraft_type"] = "A321/A320"
-
-    # 3. سياق القسم / المناوبة (Shift Reports & Stats)
-    elif f.get("department") or "shift" in intent or "report" in intent:
-        dept = f.get("department")
-        filters: Dict[str, str] = {"Department": f"eq.{dept}"} if dept else {}
-
-        if f.get("date_from"):
-            filters["Date"] = f"gte.{f['date_from']}"
-
-        data_bundle["shift_reports"] = supabase_select("shift_report", filters, 10)
-        if dept:
-            data_bundle["dept_overtime_sample"] = supabase_select(
-                "employee_overtime", filters, 10
-            )
-            data_bundle["dept_absence_sample"] = supabase_select(
-                "employee_absence", filters, 10
-            )
-
-    # 4. سياق شركة الطيران
-    elif f.get("airline"):
-        air = f["airline"]
-        data_bundle["airline_delays_sgs"] = supabase_select(
-            "sgs_flight_delay", {"Airlines": f"eq.{air}"}, 20
-        )
-        data_bundle["airline_delays_dep"] = supabase_select(
-            "dep_flight_delay", {"Airlines": f"eq.{air}"}, 20
-        )
-
-    return data_bundle
-
-
-# =========================
-# 12. المحرك الرئيسي (NXS Brain)
-# =========================
 
 def nxs_brain(user_msg: str) -> Tuple[str, Dict[str, Any]]:
     """
@@ -497,7 +408,7 @@ def nxs_brain(user_msg: str) -> Tuple[str, Dict[str, Any]]:
     classifier_prompt_parts.append("\n\nUser Query: ")
     classifier_prompt_parts.append(msg)
 
-    raw_plan = call_gemini("".join(classifier_prompt_parts, use_pro=False))
+    raw_plan = call_gemini("".join(classifier_prompt_parts), use_pro=False)
 
     try:
         clean_json = (
