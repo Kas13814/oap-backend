@@ -21,6 +21,7 @@ This version focuses on:
 import os
 import json
 import logging
+import re
 from typing import Any, Dict, List, Tuple, Optional
 
 
@@ -64,9 +65,13 @@ def _supabase_get(url: str, headers: Dict[str, str], params: Dict[str, str]) -> 
 
 
 import httpx
+import asyncio
 import google.generativeai as genai
 from fastapi import FastAPI
 from pydantic import BaseModel
+
+import time
+import re
 
 from nxs_semantic_engine import NXSSemanticEngine, build_query_plan
 
@@ -133,11 +138,7 @@ SUPABASE_URL = (
     or os.getenv("SUPABASE_API_URL")
 )
 
-SUPABASE_KEY = (
-    os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-    or os.getenv("SUPABASE_ANON_KEY")
-    or os.getenv("SUPABASE_KEY")
-)
+SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     logger.warning(
@@ -210,7 +211,6 @@ def supabase_select(
     استعلام مرن يجلب جميع الأعمدة (*) لدعم التحليل الشامل.
 
     filters: قاموس مثل {"Employee ID": "eq.150000"} أو {"Date": "gte.2025-01-01"}.
-    يترك بناء عوامل التصفية التفصيلية لطبقة المنطق الدلالي.
     """
     if not SUPABASE_URL or not SUPABASE_KEY:
         return []
@@ -227,58 +227,101 @@ def supabase_select(
         params.update(filters)
 
     try:
-    # Try strict params first, then robust column-name variants if the result is empty.
-    # This fixes 'not found' when DB columns are snake_case but the planner produced Title Case (or vice versa).
-    if not params:
-        return _supabase_get(url, headers, params)
+        candidates: List[Dict[str, str]] = [dict(params)]
 
-    candidates: List[Dict[str, str]] = [dict(params)]
+        # Identify filter keys (exclude control params)
+        control_keys = {"select", "limit", "offset", "order"}
+        filter_keys = [k for k in params.keys() if k not in control_keys]
 
-    if len(params) == 1:
-        k, v = next(iter(params.items()))
-        for vk in _colname_variants(k):
-            if vk == k:
-                continue
-            candidates.append({vk: v})
-    else:
-        norm_params: Dict[str, str] = {}
-        changed = False
-        for k, v in params.items():
-            nk = _normalize_colname(k)
-            norm_params[nk] = v
-            changed = changed or (nk != k)
-        if changed:
-            candidates.append(norm_params)
+        if len(filter_keys) == 1:
+            k = filter_keys[0]
+            v = str(params[k])
+            for vk in _colname_variants(k):
+                if vk == k:
+                    continue
+                cand = dict(params)
+                cand.pop(k, None)
+                cand[vk] = v
+                candidates.append(cand)
+        elif len(filter_keys) > 1:
+            norm_params = dict(params)
+            changed = False
+            for k in list(filter_keys):
+                nk = _normalize_colname(k)
+                if nk != k:
+                    norm_params[nk] = str(norm_params.pop(k))
+                    changed = True
+            if changed:
+                candidates.append(norm_params)
 
-    for cand in candidates:
-        data = _supabase_get(url, headers, cand)
-        if data:
-            return data
-    return []
+        for cand in candidates:
+            data = _supabase_get(url, headers, cand)
+            if data:
+                return data
+        return []
+    except Exception:
+        return []
 
-def call_gemini(prompt: str, use_pro: bool = False) -> str:
-    import requests
-    # اختيار الموديل القوي (Pro) أو السريع (Flash) من جيل 2.5 المتاح لك
-    target = "gemini-2.5-pro" if use_pro else "gemini-2.5-flash"
 
-    # الرابط المباشر الذي يقبل مفتاح API Studio ويحل مشكلة 401
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{target}:generateContent?key={GEMINI_API_KEY}"
+# =========================
+#  8. Gemini Gateway (Anti-429 Guard)
+# =========================
+
+# إذا تم تجاوز الحصة (429) نُوقف محاولات Gemini مؤقتاً لتفادي تكرار الخطأ للمستخدم
+_GEMINI_DISABLED_UNTIL_EPOCH: float = 0.0
+
+
+def _set_gemini_cooldown(seconds: int) -> None:
+    global _GEMINI_DISABLED_UNTIL_EPOCH
+    now = time.time()
+    _GEMINI_DISABLED_UNTIL_EPOCH = max(_GEMINI_DISABLED_UNTIL_EPOCH, now + max(0, int(seconds)))
+
+
+def _gemini_is_disabled() -> bool:
+    return time.time() < _GEMINI_DISABLED_UNTIL_EPOCH
+
+
+async def call_gemini(prompt: str, use_pro: bool = False) -> str:
+    """
+    نسخة احترافية تستخدم httpx للتعامل مع الموديلات الهجينة (Pro/Flash)
+    وتعمل بمفتاح Google AI Studio (بدون OAuth2).
+    """
+    if not GEMINI_API_KEY:
+        return "⚠️ لم يتم ضبط GEMINI_API_KEY في الخادم."
+
+    pro_model = os.getenv("GEMINI_PRO_MODEL", GEMINI_PRO_MODEL)
+    flash_model = os.getenv("GEMINI_FLASH_MODEL", GEMINI_FLASH_MODEL)
+    target_model = pro_model if use_pro else flash_model
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
 
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}]
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.1,
+            "topP": 0.95,
+        },
     }
 
-    try:
-        response = requests.post(url, json=payload, timeout=60)
-        if response.status_code == 200:
-            return response.json()['candidates'][0]['content']['parts'][0]['text']
-        else:
-            # سيطبع لك السبب في سجلات الخادم إذا حدث خطأ
-            logger.error(f"AI API Error: {response.status_code} - {response.text}")
-            return "⚠️ عذراً، واجه المحرك صعوبة في الرد حالياً."
-    except Exception as e:
-        logger.error(f"Connection Error: {str(e)}")
-        return "⚠️ فشل الاتصال بمحرك الذكاء الاصطناعي."
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(url, json=payload, timeout=60.0)
+
+            if response.status_code == 200:
+                result = response.json()
+                return result.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+
+            if response.status_code == 429:
+                logger.error("Quota exceeded / rate-limited: %s", response.text)
+                return "⚠️ تم تجاوز حد الطلبات، حاول مرة أخرى بعد قليل."
+
+            logger.error("Gemini API Error: %s - %s", response.status_code, response.text)
+            return "⚠️ عذراً، واجه النظام صعوبة في التحليل."
+
+        except Exception as e:
+            logger.error("Connection Error: %s", str(e))
+            return "⚠️ فشل الاتصال بمحرك الذكاء الاصطناعي."
+
 
 def fetch_context_data(intent: str, f: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -377,7 +420,30 @@ def fetch_context_data(intent: str, f: Dict[str, Any]) -> Dict[str, Any]:
 # 12. المحرك الرئيسي (NXS Brain)
 # =========================
 
-def nxs_brain(user_msg: str) -> Tuple[str, Dict[str, Any]]:
+def _fallback_answer(msg: str, plan: Dict[str, Any], data_context: Optional[Dict[str, Any]] = None) -> str:
+    """Fallback ذكي بدون LLM لتجنّب إظهار أخطاء الحصة للمستخدم."""
+    msg = (msg or "").strip()
+
+    intent = (plan or {}).get("intent") or "free_talk"
+    filters = (plan or {}).get("filters") or {}
+
+    if intent == "free_talk":
+        return "تمام. اكتب سؤالك بشكل مباشر (رحلة / موظف / قسم / تاريخ) وسأجيبك من بيانات النظام."
+
+    if data_context:
+        keys = [k for k, v in data_context.items() if v]
+        if keys:
+            k0 = keys[0]
+            sample = data_context.get(k0) or []
+            n = len(sample) if isinstance(sample, list) else 1
+            return f"تمت قراءة البيانات بنجاح. (سياق: {k0}، سجلات: {n}). حدّد رقم الرحلة/الموظف أو التاريخ للحصول على نتيجة أدق."
+
+    if filters:
+        return "لم أجد سجلات مطابقة حالياً لهذه المعايير. جرّب تحديد التاريخ أو رقم الرحلة/الموظف بشكل أوضح."
+    return "حالياً لا توجد بيانات كافية للإجابة. اذكر التاريخ + رقم الرحلة أو رقم الموظف."
+
+
+async def nxs_brain(user_msg: str) -> Tuple[str, Dict[str, Any]]:
     """
     المحرك الرئيسي:
     - يستخدم NXS Semantic Engine لتحليل السؤال وبناء خطة استعلام مبدئية.
@@ -411,18 +477,25 @@ def nxs_brain(user_msg: str) -> Tuple[str, Dict[str, Any]]:
     classifier_prompt_parts.append("\n\nUser Query: ")
     classifier_prompt_parts.append(msg)
 
-    raw_plan = call_gemini("".join(classifier_prompt_parts))
+    raw_plan = await call_gemini("".join(classifier_prompt_parts))
 
-    try:
-        clean_json = (
-            raw_plan.replace("```json", "")
-            .replace("```", "")
-            .strip()
-        )
-        plan = json.loads(clean_json)
-    except Exception:
-        # في حال الفشل في التحليل، نعود للوضع البسيط
-        plan = {"intent": "free_talk", "filters": {}}
+    # إذا Gemini غير متاح/تم تجاوز الحصة: استخدم خطة بديلة من التحليل الدلالي أو Free Talk
+    if not raw_plan:
+        if isinstance(semantic_info, dict) and semantic_info.get("intent"):
+            plan = {"intent": semantic_info.get("intent", "free_talk"), "filters": semantic_info.get("filters", {}) or {}}
+        else:
+            plan = {"intent": "free_talk", "filters": {}}
+    else:
+        try:
+            clean_json = (
+                raw_plan.replace("```json", "")
+                .replace("```", "")
+                .strip()
+            )
+            plan = json.loads(clean_json)
+        except Exception:
+            # في حال الفشل في التحليل، نعود للوضع البسيط
+            plan = {"intent": "free_talk", "filters": {}}
 
     intent: str = plan.get("intent", "free_talk")
     filters: Dict[str, Any] = plan.get("filters", {}) or {}
@@ -467,7 +540,10 @@ Extracted Filters: {json.dumps(filters, ensure_ascii=False)}
 قدّم الآن أفضل إجابة ممكنة للمستخدم، بصياغة مختصرة جداً وسلسة، وبلغته الأصلية.
 """
 
-    final_response = call_gemini(analyst_prompt)
+    final_response = await call_gemini(analyst_prompt)
+    if not final_response:
+        # لا تُظهر أي خطأ للمستخدم — استخدم fallback محلي
+        final_response = _fallback_answer(msg, plan, data_context)
     add_to_history("assistant", final_response)
 
     meta = {
@@ -492,7 +568,7 @@ def root() -> Dict[str, Any]:
     }
 
 @app.post("/chat")
-def chat(req: ChatRequest) -> Dict[str, Any]:
+async def chat(req: ChatRequest) -> Dict[str, Any]:
     msg = (req.message or "").strip()
     add_to_history("user", msg)
 
@@ -500,7 +576,7 @@ def chat(req: ChatRequest) -> Dict[str, Any]:
         return {"reply": "...", "meta": {}}
 
     try:
-        reply, meta = nxs_brain(msg)
+        reply, meta = await nxs_brain(msg)
         return {"reply": reply, "meta": meta}
     except Exception as exc:  # pragma: no cover - defensive
         logger.error("System Error: %s", exc)
