@@ -24,6 +24,7 @@ import logging
 from typing import Any, Dict, List, Tuple, Optional
 
 import httpx
+import google.generativeai as genai
 from fastapi import FastAPI
 from pydantic import BaseModel
 
