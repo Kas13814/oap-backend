@@ -68,6 +68,9 @@ import google.generativeai as genai
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+import time
+import re
+
 from nxs_semantic_engine import NXSSemanticEngine, build_query_plan
 
 
@@ -282,7 +285,7 @@ def _gemini_is_disabled() -> bool:
 
 def call_gemini(prompt: str, use_pro: bool = False) -> str:
     """
-    Call Gemini via direct HTTP (stable v1).
+    Call Gemini via direct HTTP (v1beta, API-key compatible).
 
     ✅ الهدف هنا: منع ظهور خطأ 429 للمستخدم عبر:
     - إيقاف الاستدعاءات مؤقتاً عند تجاوز الحصة (Cooldown)
@@ -296,7 +299,7 @@ def call_gemini(prompt: str, use_pro: bool = False) -> str:
         return ""
 
     target_model = GEMINI_PRO_MODEL if use_pro else GEMINI_FLASH_MODEL
-    url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
 
     payload = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
