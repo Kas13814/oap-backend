@@ -348,16 +348,29 @@ SYSTEM_INSTRUCTION_TCC_ADVOCATE = """
 # 11. دوال المساعدة (Gemini & Data)
 # =========================
 
-def call_gemini(prompt: str, use_pro: bool = False) -> str:
+def call_gemini(prompt: str, mode: str = "auto") -> str:
     """
     Call Gemini via direct HTTP (stable v1).
-    - use_pro=False => fast/cheap model (Flash)
-    - use_pro=True  => stronger model (Pro)
+    - mode='flash' => fast/cheap model (Flash)
+    - mode='pro'    => stronger model (Pro)
+    - mode='auto'   => choose based on prompt
     """
     if not GEMINI_API_KEY:
         return "⚠️ مفتاح GEMINI غير موجود على الخادم."
 
-    target_model = GEMINI_PRO_MODEL if use_pro else GEMINI_FLASH_MODEL
+    mode = (mode or "auto").lower().strip()
+    if mode in ("pro", "gemini-2.5-pro", "gemini-1.5-pro"):
+        target_model = GEMINI_PRO_MODEL
+    elif mode in ("flash", "fast", "gemini-2.5-flash", "gemini-1.5-flash"):
+        target_model = GEMINI_FLASH_MODEL
+    else:
+        p = (prompt or "")
+        heavy = (len(p) > 2500) or any(k in p.lower() for k in [
+            "analysis", "analyze", "reasoning", "step-by-step", "architecture",
+            "sql", "power bi", "dax", "power query", "m query", "merge", "join",
+            "تحليل", "استنتاج", "مقارنة", "استراتيجية", "تصميم", "خطوات", "برمجة", "استعلام", "تحقيق"
+        ])
+        target_model = GEMINI_PRO_MODEL if heavy else GEMINI_FLASH_MODEL
     url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
 
     payload = {
@@ -607,6 +620,27 @@ def root() -> Dict[str, Any]:
         "status": "Online",
         "mode": "Context-Aware Persona",
     }
+
+
+
+def is_complex_user_message(message: str) -> bool:
+    """Heuristic cost-saver: simple Q -> Flash, complex Q -> Pro."""
+    msg = (message or "").strip()
+    if not msg:
+        return False
+    m = msg.lower()
+    if len(msg) >= 260:
+        return True
+    if (m.count("?") + m.count("؟")) >= 2:
+        return True
+    complex_kw = [
+        "analysis", "analyze", "reasoning", "compare", "strategy", "design", "architecture",
+        "step by step", "sql", "power bi", "dax", "power query", "m query", "merge", "join",
+        "تحليل", "استنتاج", "مقارنة", "سبب", "جذر", "استراتيجية", "تصميم", "معمارية",
+        "خطوة", "خطوات", "كود", "برمجة", "استعلام", "قياس", "تحقيق"
+    ]
+    return any(k in m for k in complex_kw)
+
 
 @app.post("/chat")
 def chat(req: ChatRequest) -> Dict[str, Any]:
