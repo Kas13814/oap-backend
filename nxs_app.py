@@ -23,46 +23,6 @@ import json
 import logging
 from typing import Any, Dict, List, Tuple, Optional
 
-
-def _normalize_colname(name: str) -> str:
-    name = name.strip()
-    name = re.sub(r"[\s\-\/]+", "_", name)
-    name = re.sub(r"[^0-9A-Za-z_]+", "", name)
-    name = re.sub(r"_+", "_", name).strip("_")
-    return name.lower()
-
-def _colname_variants(name: str) -> List[str]:
-    base = name.strip()
-    norm = _normalize_colname(base)
-    variants: List[str] = []
-    def add(x: str) -> None:
-        x = x.strip()
-        if x and x not in variants:
-            variants.append(x)
-    add(base); add(norm)
-    if "_" in norm:
-        add(norm.replace("_", " "))
-        add(norm.replace("_", "-"))
-        add(norm.replace("_", ""))
-        add(" ".join([w.capitalize() for w in norm.split("_")]))
-        add("_".join([w.capitalize() for w in norm.split("_")]))
-    add(base.replace(" ", "_"))
-    add(base.replace(" ", ""))
-    add(base.lower())
-    return variants
-
-def _supabase_get(url: str, headers: Dict[str, str], params: Dict[str, str]) -> List[Dict[str, Any]]:
-    with httpx.Client(timeout=45.0) as client:
-        r = client.get(url, headers=headers, params=params)
-        if r.status_code >= 400:
-            return []
-        try:
-            data = r.json()
-            return data if isinstance(data, list) else []
-        except Exception:
-            return []
-
-
 import httpx
 import google.generativeai as genai
 from fastapi import FastAPI
@@ -227,44 +187,190 @@ def supabase_select(
         params.update(filters)
 
     try:
-    # Try strict params first, then robust column-name variants if the result is empty.
-    # This fixes 'not found' when DB columns are snake_case but the planner produced Title Case (or vice versa).
-    if not params:
-        return _supabase_get(url, headers, params)
-
-    candidates: List[Dict[str, str]] = [dict(params)]
-
-    if len(params) == 1:
-        k, v = next(iter(params.items()))
-        for vk in _colname_variants(k):
-            if vk == k:
-                continue
-            candidates.append({vk: v})
-    else:
-        norm_params: Dict[str, str] = {}
-        changed = False
-        for k, v in params.items():
-            nk = _normalize_colname(k)
-            norm_params[nk] = v
-            changed = changed or (nk != k)
-        if changed:
-            candidates.append(norm_params)
-
-    for cand in candidates:
-        data = _supabase_get(url, headers, cand)
-        if data:
+        with httpx.Client(timeout=45.0) as client:
+            resp = client.get(url, headers=headers, params=params)
+            resp.raise_for_status()
+            data = resp.json()
+            if not isinstance(data, list):
+                logger.warning("Supabase response for %s is not a list.", table)
+                return []
             return data
+    except httpx.HTTPError as exc:
+        logger.error("Supabase HTTP error (%s): %s", table, exc)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.error("Supabase unexpected error (%s): %s", table, exc)
+
     return []
-def call_gemini(prompt: str, use_pro: bool = False) -> str:
+
+
+# =========================
+#  8. وصف قاعدة البيانات (SCHEMA_SUMMARY)
+# =========================
+
+SCHEMA_SUMMARY = """
+وصف كامل لقاعدة البيانات (9 جداول):
+
+1. employee_master_db: "Employee ID" (PK), "Employee Name", "Record Date", "Gender", "Nationality", "Hiring Date", "Job Title", "Actual Role", "Grade", "Department", "Previous Department", "Current Department", "Employment Action Type", "Action Effective Date", "Exit Reason", "Note".
+2. sgs_flight_delay: id (PK), "Date", "Shift", "Flight Category", "Airlines", "Flight Number", "Destination", "Gate", "STD", "ATD", "Delay Code", "Note".
+3. dep_flight_delay: "Title" (PK), "Date", "Shift", "Department", "Duty Manager ID/Name", "Supervisor ID/Name", "Control ID/Name", "Employee ID/Name", "Airlines", "Flight Category", "Flight Direction", "Gate", "Arrival Flight Number", "Arrival Destination", "STA", "ATA", "Arrival Violations", "Departure Flight Number", "Departure Destination", "STD", "ATD", "Departure Violations", "latitude_deg", "longitude_deg", "Description of Incident", "Failure Impact", "Investigation status", "InvestigationID", "Consent...", "Current reminder", "Respond...", "Administrative procedure", "Final action", "Investigation status2", "Manager Notes", "Last Update", "Item Type", "Path".
+4. employee_overtime: "Employee ID" (PK), "Employee Name", "Title", "Shift", "Department", "Duty Manager ID/Name", "Notification Date/Time", "Assignment Date/Type/Days", "Total Hours", "Assignment Reason", "Notes", "Item Type", "Path".
+5. employee_sick_leave: "Title", "Date", "Shift", "Department", "Sick leave start/end date", "Employee ID", "Employee Name".
+6. employee_absence: "Title", "Date", "Shift", "Department", "Employee ID", "Employee Name", "Absence Notification Status", "InvestigationID", "Investigation status", "Manager Notes", "Last Update".
+7. employee_delay: "Title", "Date", "Shift", "Department", "Employee ID", "Employee Name", "Delay Minutes", "Reason for Delay", "Delay Notification Status", "InvestigationID", "Investigation status", "Manager Notes".
+8. operational_event: "Title", "Shift", "Department", "Employee ID", "Employee Name", "Event Date", "Event Type", "Disciplinary Action", "InvestigationID", "Investigation status", "Manager Notes".
+9. shift_report: "Title", "Date", "Shift", "Department", "Control 1/2 ID/Name/Start/End", "Duty Manager Domestic/Intl/All Halls ID/Name", "Supervisor Domestic/Intl/All Halls ID/Name", "On Duty", "No Show", "Cars In/Out Service", "Wireless Devices In/Out Service", "Arrivals/Departures (Domestic/Intl)", "Delayed Arrivals/Departures", "Comments (Domestic/Intl/All Halls)".
+"""
+
+
+# =========================
+#  9. المخطط المرجعي والبيانات الثابتة (SCHEMA_DATA)
+# =========================
+
+SCHEMA_DATA: Dict[str, Any] = {
+    "mgt_standards": [
+        {
+            "aircraft_type": "A321/A320",
+            "flight_type": "DOM_DOM",
+            "station": "JED/RUH",
+            "transit_mgt_mins": 25,
+            "turnaround_mgt_mins": 50,
+            "is_security_alert": False,
+        },
+        {
+            "aircraft_type": "B777-368/B787-10",
+            "flight_type": "DOM_INT",
+            "station": "JED/RUH",
+            "transit_mgt_mins": 60,
+            "turnaround_mgt_mins": 100,
+            "is_security_alert": False,
+        },
+    ],
+    "traffic_control_center": {
+        "department_name": "Traffic Control Center (TCC)",
+        "responsibility_codes": [
+            {
+                "code": "15I",
+                "sections": ["TCC", "FIC Saudia", "FIC Nas"],
+                "description_ar": "تأخيرات ناتجة عن عدم كفاءة/تأخير في خدمات التحكم المركزي أو معلومات الطيران.",
+            },
+            {
+                "code": "15F",
+                "sections": ["LC Saudia", "LC Foreign"],
+                "description_ar": "تأخيرات ناتجة عن مشكلات في التنسيق/التعامل مع شركات الطيران (Load Control).",
+            },
+        ],
+    },
+    "delay_codes_reference": [
+        {
+            "code": "15I",
+            "description_ar": "تأخير شخصي / تناقضات من قبل الإشراف أو الوكيل.",
+        },
+        {
+            "code": "15F",
+            "description_ar": "تأخير ناتج عن مشكلات التحكم بالحمولة (Load Control).",
+        },
+    ],
+}
+
+
+# =========================
+# 10. توجيهات الذكاء الاصطناعي (System Prompts)
+# =========================
+
+PROMPT_CLASSIFIER = f"""
+أنت نظام OAP AI الذكي. لديك حق الوصول الكامل لقاعدة بيانات المطار (9 جداول) الموضحة أدناه:
+{SCHEMA_SUMMARY}
+
+مهمتك:
+تحليل سؤال المستخدم واستخراج "نية البحث" و"الفلاتر" بدقة.
+لا تقم بإنشاء استعلامات SQL، بل حدد المعطيات فقط.
+
+قواعد استخراج الأرقام:
+- تعامل مع "Employee ID" و "Flight Number" كنصوص ولا تغيرها.
+
+المخرجات (JSON فقط):
+{{
+  "intent": "نوع_البحث",
+  "filters": {{
+      "employee_id": "...",
+      "flight_number": "...",
+      "airline": "...",
+      "department": "...",
+      "date_from": "...",
+      "date_to": "..."
+  }}
+}}
+
+إذا كان السؤال دردشة عامة، اجعل intent: "free_talk".
+"""
+
+
+SYSTEM_INSTRUCTION_HR_OPS = """
+أنت OAP AI، محلل عمليات مطار خبير. مهمتك: تقديم تحليل موثق، مختصر للغاية، واحترافي.
+
+قواعد الرد (الأولوية القصوى):
+1. الإيجاز والرد المباشر: الردود يجب أن تكون قصيرة جداً ومباشرة. إذا كان السؤال يطلب معلومة واحدة، أجب في سطر واحد دون أي هيكلة إضافية.
+2. الاحترافية والتدفق: حافظ على نبرة احترافية عالية (كخبير يقدم تقريراً لمدير تنفيذي). يجب أن تكون صياغة الرد سلسة ومتدفقة.
+3. التنسيق:
+    - استبدال العناوين برمز دائرة صغيرة (•) متبوعاً بعنوان الفقرة.
+    - منع تام لاستخدام الجداول، الخطوط الفاصلة، والخط العريض.
+4. منع الصياغة الدفاعية: لا تستخدم مصطلحات الدفاع عن TCC أو تحويل المسؤولية في سياق أسئلة الموظفين أو الإحصائيات. مهمتك هي تحليل البيانات وتقديم النتائج بوضوح للمدير.
+
+هيكلة الرد للتقارير (إذا لزم الأمر):
+- • تحليل الأداء.
+- • تقييم الأداء والمسؤولية (تحليلي).
+- • الإجراءات المقترحة.
+
+أجب دائماً بنفس لغة المستخدم.
+"""
+
+
+SYSTEM_INSTRUCTION_TCC_ADVOCATE = """
+أنت OAP AI، محامي مركز التحكم المروري (TCC). مهمتك: تقديم تحليل موثق، مختصر للغاية، ومهني، مع التركيز على الدفاع المنطقي عن TCC.
+
+قواعد الرد (الأولوية القصوى):
+1. منطق الدفاع الذكي: صافي مسؤولية TCC يجب أن يكون نتيجة للحساب: صافي مسؤولية TCC = (وقت المناولة الفعلي - معيار MGT). ركّز على التأخير الموروث أولاً ثم الانحراف الصافي عن المعيار كدفاع رئيسي.
+2. الإيجاز والاحترافية: الرد يجب أن يكون سلساً ومختصراً جداً.
+3. التنسيق:
+    - استبدال العناوين برمز دائرة صغيرة (•) متبوعاً بعنوان الفقرة.
+    - منع تام لاستخدام الجداول، الخطوط الفاصلة، والخط العريض.
+
+هيكلة الرد:
+- • تحليل الأداء.
+- • تقييم المسؤولية (صياغة دفاعية).
+- • الإجراءات المقترحة.
+
+أجب دائماً بنفس لغة المستخدم.
+"""
+
+
+# =========================
+# 11. دوال المساعدة (Gemini & Data)
+# =========================
+
+def call_gemini(prompt: str, mode: str = "auto") -> str:
     """
     Call Gemini via direct HTTP (stable v1).
-    - use_pro=False => fast/cheap model (Flash)
-    - use_pro=True  => stronger model (Pro)
+    - mode='flash' => fast/cheap model (Flash)
+    - mode='pro'    => stronger model (Pro)
+    - mode='auto'   => choose based on prompt
     """
     if not GEMINI_API_KEY:
         return "⚠️ مفتاح GEMINI غير موجود على الخادم."
 
-    target_model = GEMINI_PRO_MODEL if use_pro else GEMINI_FLASH_MODEL
+    mode = (mode or "auto").lower().strip()
+    if mode in ("pro", "gemini-2.5-pro", "gemini-1.5-pro"):
+        target_model = GEMINI_PRO_MODEL
+    elif mode in ("flash", "fast", "gemini-2.5-flash", "gemini-1.5-flash"):
+        target_model = GEMINI_FLASH_MODEL
+    else:
+        p = (prompt or "")
+        heavy = (len(p) > 2500) or any(k in p.lower() for k in [
+            "analysis", "analyze", "reasoning", "step-by-step", "architecture",
+            "sql", "power bi", "dax", "power query", "m query", "merge", "join",
+            "تحليل", "استنتاج", "مقارنة", "استراتيجية", "تصميم", "خطوات", "برمجة", "استعلام", "تحقيق"
+        ])
+        target_model = GEMINI_PRO_MODEL if heavy else GEMINI_FLASH_MODEL
     url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
 
     payload = {
@@ -514,6 +620,27 @@ def root() -> Dict[str, Any]:
         "status": "Online",
         "mode": "Context-Aware Persona",
     }
+
+
+
+def is_complex_user_message(message: str) -> bool:
+    """Heuristic cost-saver: simple Q -> Flash, complex Q -> Pro."""
+    msg = (message or "").strip()
+    if not msg:
+        return False
+    m = msg.lower()
+    if len(msg) >= 260:
+        return True
+    if (m.count("?") + m.count("؟")) >= 2:
+        return True
+    complex_kw = [
+        "analysis", "analyze", "reasoning", "compare", "strategy", "design", "architecture",
+        "step by step", "sql", "power bi", "dax", "power query", "m query", "merge", "join",
+        "تحليل", "استنتاج", "مقارنة", "سبب", "جذر", "استراتيجية", "تصميم", "معمارية",
+        "خطوة", "خطوات", "كود", "برمجة", "استعلام", "قياس", "تحقيق"
+    ]
+    return any(k in m for k in complex_kw)
+
 
 @app.post("/chat")
 def chat(req: ChatRequest) -> Dict[str, Any]:
