@@ -27,6 +27,11 @@ nxs_semantic_engine.py
 
 from __future__ import annotations
 
+# --- COLUMN_NAME_NORMALIZATION ---
+# Prefer planning with snake_case columns when possible.
+# The app layer will also try variants (spaces/caps) as fallback.
+# --------------------------------
+
 from dataclasses import dataclass
 from typing import List, Dict, Any, Tuple, Optional
 from pathlib import Path
