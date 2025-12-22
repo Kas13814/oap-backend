@@ -1097,3 +1097,10 @@ def get_advanced_ml_features() -> List[Dict[str, Any]]:
         # ... 1000+ صف من البيانات في التطبيق الفعلي ...
     ]
 
+def find_employee_fast(emp_id: str):
+    # البحث بالاسم الخام للعمود كما هو في جداولك (بالمسافات)
+    url = f"{REST_BASE_URL}/employee_master_db"
+    params = {"Employee ID": f"eq.{emp_id}", "select": "*"}
+    response = requests.get(url, headers=COMMON_HEADERS, params=params)
+    return response.json() if response.status_code == 200 else []
+
