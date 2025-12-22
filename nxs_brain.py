@@ -836,18 +836,18 @@ def nxs_brain(message: str) -> Tuple[str, Dict[str, Any]]:
         return answer_text, meta
 
     # =================== Global ID Search (Patch فقط) ===================
-    # إذا كان السؤال يحتوي على رقم مكوّن من 5 خانات فأكثر، نقوم ببحث شامل في قاعدة البيانات
+    # إذا كان السؤال يحتوي على رقم مكوّن من 5 إلى 8 خانات، نقوم ببحث (قوة ضاربة) في قاعدة البيانات
     # ثم نمرر النتائج مباشرة لمحرك الصياغة بدون فلترة مسبقة.
-    potential_ids = re.findall(r'\d{5,}', message)
+    id_match = re.search(r"\d{5,8}", message or "")
     collected_data: List[Dict[str, Any]] = []
-    if potential_ids:
-        for p_id in potential_ids:
-            try:
-                data = nxs_db.global_search_by_id(str(p_id))
-                if data:
-                    collected_data.extend(data)
-            except Exception as exc:
-                logger.error(f"Global search error for ID {p_id}: {exc}")
+    found_id: Optional[str] = None
+
+    if id_match:
+        found_id = id_match.group(0)
+        try:
+            collected_data = nxs_db.force_find_any_id(str(found_id)) or []
+        except Exception as exc:
+            logger.error(f"Force find error for ID {found_id}: {exc}")
 
     if collected_data:
         # تحديد لغة الرد بشكل مبسط (بدون تغيير منطق planner)
@@ -861,7 +861,7 @@ def nxs_brain(message: str) -> Tuple[str, Dict[str, Any]]:
         answer_prompt = build_answer_prompt(
             user_message=message,
             language=language,
-            planner_notes="global-id-search",
+            planner_notes="force-find-any-id",
             data_bundle={"global_search_results": collected_data},
             extra_system_instruction=strict_instruction,
             operational_context=None,
@@ -873,8 +873,8 @@ def nxs_brain(message: str) -> Tuple[str, Dict[str, Any]]:
             {
                 "ok": True,
                 "language": language,
-                "stage": "global_search_by_id",
-                "data_summary": {"rows": len(collected_data)},
+                "stage": "force_find_any_id",
+                "data_summary": {"rows": len(collected_data), "found_id": found_id},
                 "engine": "NXS-URE",
             }
         )
