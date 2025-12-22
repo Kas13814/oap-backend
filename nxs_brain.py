@@ -752,7 +752,7 @@ def _build_defense_instruction(bundle: Dict[str, Any]) -> str:
     if actual_ground_time is not None and mgt_minutes is not None and actual_ground_time <= mgt_minutes:
         # دعم إضافي: ربط No Show كسبب جذري إن وجد
         wb = analyze_workload_balance(shift) if shift else {}
-    cap = calculate_operational_capacity(shift) if shift else {}
+        cap = calculate_operational_capacity(shift) if shift else {}
         no_show = wb.get("no_show")
         shortage = wb.get("shortage_percent")
         extra = ""
@@ -1526,3 +1526,168 @@ def _gopm_answer(message: str) -> tuple[str, dict]:
     return "\n".join(parts), meta
 
 a
+
+# =================================================================
+# NXS Ultra Reasoning Injection (nxs_engine)
+# =================================================================
+# تم حقن هذا القسم بناءً على طلب المستخدم لإضافة محرك NXSUltraReasoning
+# دون المساس بباقي منطق nxs_brain الأصلي.
+
+import re  # required for entity extraction in NXSUltraReasoning
+
+class NXSUltraReasoning:
+    def __init__(self):
+        self.system_prompt = """
+        أنت الذكاء الاصطناعي الخبير بمطار الملك عبدالعزيز (NXS). 
+        صلاحياتك: الوصول الكامل لجميع الأعمدة في جداول (MGT, Flight Delays, Shift Reports, Employee Master).
+        مهمتك: 
+        1. إذا سُئلت عن موظف برقم ID، ابحث في كافة الجداول عن هذا الرقم.
+        2. عند تحليل أي تأخير، استدعِ معيار MGT وقارنه بالوقت الفعلي (ATA vs ATD).
+        3. إذا وجدت نقصاً في الموظفين (No Show) في شفت الرحلة، اربطه فوراً كسبب للتأخير للدفاع عن القسم.
+        """
+
+    async def process_query(self, user_query):
+        # 1. تحليل السؤال واستخراج كافة الأرقام (IDs, Flight Numbers)
+        entities = self.extract_entities(user_query)
+
+        # 2. الاستعلام الشامل (Global Search)
+        # سيقوم النظام بمسح الجداول بناءً على الأرقام المكتشفة
+        context_data = {}
+
+        if entities.get('employee_id'):
+            # البحث في Master DB و Shift Report و Delays
+            context_data['employee_info'] = nxs_db.get_all_employee_data(entities['employee_id'])
+
+        if entities.get('flight_number'):
+            # جلب بيانات الرحلة + معايير MGT + حالة الشفت في ذلك اليوم
+            flight_info = nxs_db.get_integrated_flight_data(entities['flight_number'])
+            shift_info = nxs_db.get_shift_report_by_date(flight_info['date'], flight_info['shift'])
+
+            # حساب الضغط التشغيلي (المعادلة التي زودتني بها)
+            workload = self.calculate_workload(shift_info)
+            context_data['analysis'] = {
+                "flight": flight_info,
+                "workload_pressure": workload,
+                "mgt_compliance": self.check_mgt(flight_info)
+            }
+
+        # 3. توليد الإجابة الاحترافية باستخدام Gemini Pro
+        return self.generate_final_response(user_query, context_data)
+
+    def calculate_workload(self, shift):
+        # تطبيق معاييرك: 70 دقيقة مغادرة / 20 دقيقة وصول
+        total_minutes_needed = (shift['Departures'] * 70) + (shift['Arrivals'] * 20)
+        available_minutes = shift['On_Duty'] * 480
+        return (total_minutes_needed / available_minutes) * 100
+
+    # ------------------- Helpers (added to complete the injection) -------------------
+
+    def extract_entities(self, user_query: str) -> Dict[str, Any]:
+        """استخراج Employee ID ورقم الرحلة من نص المستخدم بشكل مرن."""
+        q = (user_query or "").strip()
+        uq = q.upper()
+
+        # Flight number: SV123 / XY4567 / FZ123 etc.
+        flight = None
+        m = re.search(r"\b([A-Z]{2,3})\s*(\d{1,5})\b", uq)
+        if m:
+            flight = f"{m.group(1)}{m.group(2)}"
+
+        # Employee ID: رقم 4-10 خانات (نأخذ أول رقم واضح)
+        emp = None
+        m2 = re.search(r"\b(\d{4,10})\b", q)
+        if m2:
+            emp = m2.group(1)
+
+        return {"employee_id": emp, "flight_number": flight}
+
+    def _minutes_diff(self, start_hhmm: Any, end_hhmm: Any) -> Optional[int]:
+        """فرق دقائق بين وقتين HH:MM مع مراعاة عبور منتصف الليل."""
+        def parse(v: Any) -> Optional[int]:
+            if v is None:
+                return None
+            s = str(v).strip()
+            if not s:
+                return None
+            mm = re.match(r"^(\d{1,2}):(\d{2})", s)
+            if not mm:
+                return None
+            h = int(mm.group(1))
+            m = int(mm.group(2))
+            return h * 60 + m
+
+        a = parse(start_hhmm)
+        b = parse(end_hhmm)
+        if a is None or b is None:
+            return None
+        if b < a:
+            b += 24 * 60
+        return b - a
+
+    def check_mgt(self, flight_info: Dict[str, Any]) -> Dict[str, Any]:
+        """يحاول استدعاء MGT (إن توفر) ومقارنته بالوقت الفعلي على الأرض."""
+        if not isinstance(flight_info, dict):
+            return {"mgt_standard": None, "actual_minutes": None, "status": "no_flight_info"}
+
+        ata = flight_info.get("ATA") or flight_info.get("AAT") or flight_info.get("Arrival_ATA") or flight_info.get("arrival_ata")
+        atd = flight_info.get("ATD") or flight_info.get("ADT") or flight_info.get("Departure_ATD") or flight_info.get("departure_atd")
+        actual = self._minutes_diff(ata, atd)
+
+        mgt_standard = None
+        try:
+            if lookup_mgt is not None:
+                # نحاول استخدام حقول شائعة إن وجدت
+                ac = flight_info.get("Aircraft_Type") or flight_info.get("aircraft_type") or flight_info.get("Aircraft Group") or flight_info.get("aircraft_group")
+                mv = flight_info.get("Movement") or flight_info.get("movement") or flight_info.get("Flight Movement") or flight_info.get("flight_movement")
+                st = flight_info.get("Station") or flight_info.get("ORG") or flight_info.get("origin") or flight_info.get("station")
+                dest = flight_info.get("Destination") or flight_info.get("DES") or flight_info.get("destination") or flight_info.get("destination_station")
+                if ac and mv and st:
+                    r = lookup_mgt(
+                        operation="TURNAROUND",
+                        aircraft_group=str(ac),
+                        movement=str(mv),
+                        station=str(st),
+                        destination_station=str(dest) if dest else None,
+                        is_security_alert_station=False,
+                        apply_local_towing_rule=False,
+                    )
+                    mgt_standard = getattr(r, "final_mgt_minutes", None)
+        except Exception:
+            mgt_standard = None
+
+        status = None
+        if actual is not None and mgt_standard is not None:
+            status = "pass" if int(actual) <= int(mgt_standard) else "fail"
+
+        return {
+            "mgt_standard": mgt_standard,
+            "actual_minutes": actual,
+            "status": status,
+        }
+
+    def generate_final_response(self, user_query: str, context_data: Dict[str, Any]) -> str:
+        """صياغة إجابة احترافية بالاعتماد على نفس محرك الاستجابة الموجود في الملف."""
+        q = (user_query or "").strip()
+        is_ar = bool(re.search(r"[\u0600-\u06FF]", q))
+
+        prompt = (
+            (self.system_prompt or "").strip()
+            + "\n\n"
+            + ("سؤال المستخدم:\n" if is_ar else "User question:\n")
+            + q
+            + "\n\n"
+            + ("بيانات السياق (JSON):\n" if is_ar else "Context data (JSON):\n")
+            + json.dumps(context_data or {}, ensure_ascii=False)
+            + "\n\n"
+            + ("اكتب الإجابة النهائية للمستخدم بشكل منظم وواضح، بدون تفاصيل برمجية." if is_ar else "Write a clear, structured final answer for the user, without programming details.")
+        )
+
+        # استخدام نفس دالة الاستدعاء الموجودة في الملف (call_ai)
+        try:
+            return call_ai(prompt, model_name=GEMINI_MODEL_COMPLEX, temperature=0.4, max_tokens=1800)
+        except Exception:
+            # fallback بسيط
+            return "⚠️ تعذّر توليد إجابة حالياً."
+
+# تشغيل المحرك
+nxs_engine = NXSUltraReasoning()
