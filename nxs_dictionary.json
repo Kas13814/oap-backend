@@ -979,7 +979,8 @@
             "رقم الموظف",
             "معرف الموظف",
             "الرقم الوظيفي"
-          ]
+          ],
+          "description_ar": "الرقم الوظيفي الفريد لكل موظف"
         },
         {
           "original_name": "Employee Name",
@@ -997,7 +998,8 @@
             "اسم الموظف",
             "الاسم",
             "اسم العامل"
-          ]
+          ],
+          "description_ar": "الاسم الكامل للموظف"
         },
         {
           "original_name": "Employment Action Type",
@@ -2019,6 +2021,9 @@
           "synonyms_ar": [
             "تاريخ الشفت",
             "التاريخ"
+          ],
+          "alternate_canonical_names": [
+            "shift_date"
           ]
         },
         {
@@ -2172,6 +2177,9 @@
             "shortage",
             "staff shortage",
             "operational pressure"
+          ],
+          "alternate_canonical_names": [
+            "no_show"
           ]
         },
         {
@@ -2201,6 +2209,9 @@
             "capacity",
             "operational pressure",
             "shortage"
+          ],
+          "alternate_canonical_names": [
+            "on_duty"
           ]
         },
         {
