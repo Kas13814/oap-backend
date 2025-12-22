@@ -216,33 +216,41 @@ def _filter_employee_range(
 # ============================
 
 
-def global_search_by_id(search_id: str) -> List[Dict[str, Any]]:
+def force_find_any_id(search_id: str) -> List[Dict[str, Any]]:
     """
-    البحث الشامل عن أي رقم (ID) في الجداول الرئيسية لضمان عدم ضياع البيانات.
+    هذه الدالة هي 'الحل الجذري' - تبحث عن الرقم في كافة الجداول المحتملة
+    بدون انتظار إذن من المحرك الدلالي.
     """
-    results = []
-    # الجداول التي سيتم مسحها فوراً عند وجود رقم
-    target_tables = [
-        {"table": "employee_master_db", "col": "Employee ID"},
-        {"table": "shift_report", "col": "Title"},
-        {"table": "dep_flight_delay", "col": "Employee ID"}
+    all_results = []
+    # قائمة الجداول والأعمدة كما هي في قاعدة بياناتك الفعلية
+    targets = [
+        {"table": "employee_master_db", "column": "Employee ID"},
+        {"table": "shift_report", "column": "Title"}, # أحياناً الرقم يكون في العنوان
+        {"table": "dep_flight_delay", "column": "Employee ID"}
     ]
 
-    for entry in target_tables:
+    for t in targets:
         try:
-            url = f"{REST_BASE_URL}/{entry['table']}"
-            params = {entry['col']: f"eq.{search_id}", "select": "*"}
-            resp = requests.get(url, headers=COMMON_HEADERS, params=params)
-            if resp.status_code == 200 and resp.json():
-                data = resp.json()
-                # إضافة اسم الجدول للبيانات ليعرف Gemini مصدرها
+            # استخدام select=* لضمان جلب كل الأعمدة التسعة
+            url = f"{REST_BASE_URL}/{t['table']}"
+            params = {t['column']: f"eq.{search_id}", "select": "*"}
+            r = requests.get(url, headers=COMMON_HEADERS, params=params)
+            if r.status_code == 200 and r.json():
+                data = r.json()
                 for row in data:
-                    row["_source_table"] = entry['table']
-                results.extend(data)
+                    row["_found_in_table"] = t['table'] # ليعرف Gemini أين وجده
+                all_results.extend(data)
         except Exception as e:
-            logger.error(f"Error searching {entry['table']}: {e}")
+            logger.error(f"Error in force_find: {e}")
 
-    return results
+    return all_results
+
+
+def global_search_by_id(search_id: str) -> List[Dict[str, Any]]:
+    """
+    Alias for backward-compatibility: uses force_find_any_id.
+    """
+    return force_find_any_id(search_id)
 
 def search_everywhere(value: str) -> Optional[List[Dict[str, Any]]]:
     """
@@ -288,7 +296,7 @@ def search_everywhere(value: str) -> Optional[List[Dict[str, Any]]]:
     return None
 def get_employee_info(emp_id: str) -> Optional[Dict[str, Any]]:
     """جلب معلومات موظف واحد عبر بحث ماسح في الجداول (search_everywhere)."""
-    rows = search_everywhere(str(emp_id))
+    rows = force_find_any_id(str(emp_id))
     if rows and isinstance(rows, list) and rows and isinstance(rows[0], dict):
         return rows[0]
     return None
