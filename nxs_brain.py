@@ -828,6 +828,25 @@ def nxs_brain(message: str) -> Tuple[str, Dict[str, Any]]:
 
     meta: Dict[str, Any] = {"ok": False}
 
+    # =================== Force Rule: Direct Employee Master Lookup ===================
+    # إذا وجدنا رقماً طويلاً (7-8 خانات)، نجبر النظام على فحص جدول الموظفين فوراً بدون المرور بالمحرك الدلالي.
+    id_match_direct = re.search(r"\d{7,8}", message)
+    if id_match_direct:
+        found_id = id_match_direct.group(0)
+        try:
+            employee_data = nxs_db.execute_dynamic_query(
+                f"SELECT * FROM employee_master_db WHERE \"Employee ID\" = '{found_id}'"
+            )
+        except Exception as exc:
+            employee_data = []
+            logger.error(f"Direct employee lookup error for ID {found_id}: {exc}")
+
+        if employee_data:
+            return (
+                f"تم العثور على الموظف: {employee_data[0].get('Name')}. القسم: {employee_data[0].get('Department')}...",
+                {}
+            )
+
     # مسار سريع لقواعد GOPM (MGT/Turnaround/Transit/Activity Breakdown)
     # هذا المسار لا يستخدم Supabase ولا يلمس منطق خطط TCC.
     if _is_gopm_question(message):
