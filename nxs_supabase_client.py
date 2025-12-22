@@ -214,11 +214,55 @@ def _filter_employee_range(
 # ============================
 # دوال جلب البيانات
 # ============================
+
+def search_everywhere(value: str) -> Optional[List[Dict[str, Any]]]:
+    """
+    بحث 'ماسح' عن قيمة (غالباً رقم وظيفي) عبر عدة جداول وأعمدة محتملة.
+
+    يبحث حالياً في:
+    1) employee_master_db
+    2) dep_flight_delay
+    3) shift_report
+
+    ملاحظة PostgREST:
+    - نستخدم باراميتر or=(...) للبحث عبر أعمدة متعددة.
+    - الأعمدة التي تحتوي مسافات تُكتب بين علامتي اقتباس مزدوجة.
+    """
+    v = (value or "").strip()
+    if not v:
+        return None
+
+    # أعمدة محتملة لكل جدول (يمكن توسيعها لاحقاً حسب الحاجة)
+    table_columns: Dict[str, List[str]] = {
+        "employee_master_db": ['"Employee ID"', "employee_id", "EmployeeID", "id", '"Title"'],
+        "dep_flight_delay": ['"Employee ID"', "employee_id", "EmployeeID", "id", '"Title"', '"Duty Manager ID"', '"Supervisor ID"', '"Control ID"'],
+        "shift_report": [
+            '"Employee ID"', "employee_id", "EmployeeID", "id", '"Title"',
+            '"Control 1 ID"', '"Control 2 ID"',
+            '"Duty Manager Domestic ID"', '"Duty Manager International+Foreign ID"', '"Duty Manager All Halls ID"',
+            '"Supervisor Domestic ID"', '"Supervisor International+Foreign ID"', '"Supervisor All Halls ID"',
+        ],
+    }
+
+    tables = ["employee_master_db", "dep_flight_delay", "shift_report"]
+
+    for table in tables:
+        cols = table_columns.get(table, ['"Employee ID"', "id", '"Title"'])
+        # or=("Employee ID".eq.123,id.eq.123,"Title".eq.123)
+        parts = [f"{c}.eq.{v}" for c in cols]
+        or_clause = "(" + ",".join(parts) + ")"
+
+        rows = _get(table, [("select", "*"), ("limit", "200"), ("or", or_clause)])
+        if rows:
+            return rows
+
+    return None
 def get_employee_info(emp_id: str) -> Optional[Dict[str, Any]]:
-    """جلب معلومات موظف واحد من جدول employee_master_db."""
-    table_name = "employee_master_db"
-    # يتم الجلب بدون فلترة في URL للمرونة
-    rows = _get(table_name, {"select": "*", "limit": 10000})
+    """جلب معلومات موظف واحد عبر بحث ماسح في الجداول (search_everywhere)."""
+    rows = search_everywhere(str(emp_id))
+    if rows and isinstance(rows, list) and rows and isinstance(rows[0], dict):
+        return rows[0]
+    return None
 
     target = str(emp_id).strip()
     for r in rows:
