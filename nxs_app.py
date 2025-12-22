@@ -74,6 +74,11 @@ import time
 import re
 
 from nxs_semantic_engine import NXSSemanticEngine, build_query_plan
+try:
+    from nxs_semantic_engine import interpret_with_filters
+except Exception:
+    interpret_with_filters = None
+
 
 
 # =========================
@@ -107,11 +112,17 @@ if not GEMINI_API_KEY:
 logger.info("✅ Gemini API key detected, configuring client...")
 
 genai.configure(api_key=GEMINI_API_KEY)
-GEMINI_FLASH_MODEL = os.getenv("GEMINI_FLASH_MODEL", os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash"))
-GEMINI_PRO_MODEL   = os.getenv("GEMINI_PRO_MODEL", "gemini-2.5-pro")
+GEMINI_FLASH_MODEL = os.getenv(
+    "GEMINI_FLASH_MODEL",
+    os.getenv("GEMINI_MODEL_SIMPLE", os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash"))
+)
+GEMINI_PRO_MODEL = os.getenv(
+    "GEMINI_PRO_MODEL",
+    os.getenv("GEMINI_MODEL_COMPLEX", "gemini-2.5-pro")
+)
 # default model (fast/cheap)
-GEMINI_MODEL_NAME  = GEMINI_FLASH_MODEL
-# نستخدم نموذجاً واحداً معاد الاستخدام لتقليل الحمل وتحسين الثبات
+GEMINI_MODEL_NAME = GEMINI_FLASH_MODEL
+# نستخدم نموذجاً واحداً معاد الاستخدام لتقليل الحمل وتحسين الثبات (اختياري)
 GEMINI_MODEL = genai.GenerativeModel(GEMINI_MODEL_NAME)
 
 
@@ -416,20 +427,21 @@ def fetch_context_data(intent: str, f: Dict[str, Any]) -> Dict[str, Any]:
     return data_bundle
 
 
+
 # =========================
 # 12. المحرك الرئيسي (NXS Brain)
 # =========================
 
 def _fallback_answer(msg: str, plan: Dict[str, Any], data_context: Optional[Dict[str, Any]] = None) -> str:
-    """Fallback ذكي بدون LLM لتجنّب إظهار أخطاء الحصة للمستخدم."""
+    """Fallback ذكي بدون LLM لتجنّب إسقاط الخدمة عند أخطاء الحصة/الاتصال."""
     msg = (msg or "").strip()
-
     intent = (plan or {}).get("intent") or "free_talk"
     filters = (plan or {}).get("filters") or {}
 
     if intent == "free_talk":
-        return "تمام. اكتب سؤالك بشكل مباشر (رحلة / موظف / قسم / تاريخ) وسأجيبك من بيانات النظام."
+        return "تمام. اكتب سؤالك بشكل مباشر (رحلة / موظف / قسم / تاريخ) وسأجيبك من بيانات النظام قدر الإمكان."
 
+    # إذا عندنا سياق بيانات
     if data_context:
         keys = [k for k, v in data_context.items() if v]
         if keys:
@@ -442,6 +454,52 @@ def _fallback_answer(msg: str, plan: Dict[str, Any], data_context: Optional[Dict
         return "لم أجد سجلات مطابقة حالياً لهذه المعايير. جرّب تحديد التاريخ أو رقم الرحلة/الموظف بشكل أوضح."
     return "حالياً لا توجد بيانات كافية للإجابة. اذكر التاريخ + رقم الرحلة أو رقم الموظف."
 
+
+# =========================
+# 12.A Model Router (Flash/Pro)
+# =========================
+
+def _choose_use_pro(
+    semantic_info: Optional[Dict[str, Any]],
+    user_msg: str,
+    plan: Optional[Dict[str, Any]] = None
+) -> Tuple[bool, Dict[str, Any]]:
+    """يقرر هل نستخدم Pro (للأسئلة المعقدة) أم Flash (للأسئلة البسيطة).
+
+    أولوية القرار:
+    1) model_hint/complexity_hint القادم من interpret_with_filters (إن وجد).
+    2) fallback خفيف: طول السؤال + عدد الفلاتر + نوع intent.
+    """
+    try:
+        if isinstance(semantic_info, dict):
+            mh = semantic_info.get("model_hint") if isinstance(semantic_info.get("model_hint"), dict) else None
+            if mh and mh.get("tier") == "complex":
+                return True, {"source": "semantic_model_hint", "hint": mh}
+            if mh and mh.get("tier") == "simple":
+                return False, {"source": "semantic_model_hint", "hint": mh}
+
+            ch = semantic_info.get("complexity_hint") if isinstance(semantic_info.get("complexity_hint"), dict) else None
+            if ch and ch.get("tier") == "complex":
+                return True, {"source": "semantic_complexity_hint", "hint": ch}
+            if ch and ch.get("tier") == "simple":
+                return False, {"source": "semantic_complexity_hint", "hint": ch}
+    except Exception:
+        pass
+
+    # Fallback heuristics (خفيفة وسريعة)
+    msg = (user_msg or "").strip()
+    words = msg.split()
+
+    if plan and isinstance(plan.get("filters"), dict) and len(plan.get("filters") or {}) >= 2:
+        return True, {"source": "fallback", "reason": "multiple_filters"}
+
+    if plan and isinstance(plan.get("intent"), str) and plan.get("intent") in {"mgt_compliance", "flight_analysis"}:
+        return True, {"source": "fallback", "reason": "analysis_intent"}
+
+    if len(words) >= 18:
+        return True, {"source": "fallback", "reason": "long_question"}
+
+    return False, {"source": "fallback", "reason": "simple_question"}
 
 async def nxs_brain(user_msg: str) -> Tuple[str, Dict[str, Any]]:
     """
@@ -459,10 +517,13 @@ async def nxs_brain(user_msg: str) -> Tuple[str, Dict[str, Any]]:
     semantic_info: Optional[Dict[str, Any]] = None
     if SEMANTIC_ENGINE is not None:
         try:
-            semantic_info = build_query_plan(SEMANTIC_ENGINE, msg)
+            # إذا كان interpret_with_filters متاحاً يرجع model_hint/complexity_hint أيضاً
+            if interpret_with_filters:
+                semantic_info = interpret_with_filters(SEMANTIC_ENGINE, msg)
+            else:
+                semantic_info = build_query_plan(SEMANTIC_ENGINE, msg)
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning("NXS Semantic Engine error: %s", exc)
-
     # 2) تصنيف النية باستخدام Gemini مع تمرير التحليل المسبق وتاريخ المحادثة
     classifier_prompt_parts = [
         PROMPT_CLASSIFIER,
@@ -540,7 +601,8 @@ Extracted Filters: {json.dumps(filters, ensure_ascii=False)}
 قدّم الآن أفضل إجابة ممكنة للمستخدم، بصياغة مختصرة جداً وسلسة، وبلغته الأصلية.
 """
 
-    final_response = await call_gemini(analyst_prompt)
+    use_pro_final, routing_meta = _choose_use_pro(semantic_info, msg, plan)
+    final_response = await call_gemini(analyst_prompt, use_pro=use_pro_final)
     if not final_response:
         # لا تُظهر أي خطأ للمستخدم — استخدم fallback محلي
         final_response = _fallback_answer(msg, plan, data_context)
@@ -550,6 +612,7 @@ Extracted Filters: {json.dumps(filters, ensure_ascii=False)}
         "plan": plan,
         "data_sources": list(data_context.keys()),
         "semantic": semantic_info,
+        "model_routing": routing_meta,
     }
     return final_response, meta
 
