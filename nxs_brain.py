@@ -426,10 +426,12 @@ def build_answer_prompt(
     language: str,
     planner_notes: str,
     data_bundle: Dict[str, Any],
+    extra_system_instruction: str = "",
+    operational_context: Optional[Dict[str, Any]] = None,
 ) -> str:
     lang_hint = "العربية" if language == "ar" else "الإنجليزية"
 
-    return (
+    prompt = (
         ANSWER_PROMPT_BASE
         + "\n\n"
         + f"لغة المستخدم المتوقعة: {lang_hint}\n"
@@ -437,10 +439,374 @@ def build_answer_prompt(
         + user_message
         + "\n\nملاحظات مرحلة التخطيط:\n"
         + (planner_notes or "لا توجد ملاحظات مهمة.")
-        + "\n\nالبيانات المستخرجة من النظام (JSON) للاستخدام الداخلي في التحليل:\n"
+    )
+
+    # حقن سياق إضافي (Intent Intelligence / Operational Context) بدون تغيير بقية النظام
+    if operational_context:
+        prompt += "\n\nسياق عمليات إضافي (Operational Context) للاستخدام الداخلي في التحليل:\n"
+        prompt += json.dumps(operational_context, ensure_ascii=False)
+
+    # حقن تعليمات خاصة (مثل بروتوكول المحامي) بدون لمس بقية القواعد
+    if extra_system_instruction:
+        prompt += "\n\nتعليمات خاصة (System Instruction) للاستخدام الداخلي في التحليل:\n"
+        prompt += str(extra_system_instruction).strip()
+
+    prompt += (
+        "\n\nالبيانات المستخرجة من النظام (JSON) للاستخدام الداخلي في التحليل:\n"
         + json.dumps(data_bundle, ensure_ascii=False)
         + "\n\nالآن قدّم الإجابة النهائية للمستخدم بشكل منظم وواضح وعملي، بدون إظهار JSON أو تفاصيل برمجية:"
     )
+
+    return prompt
+
+
+
+# =================== Cross-Table Reasoning + Defense Protocol ===================
+
+def _is_flight_delay_query(user_query: str) -> bool:
+    q = (user_query or "").strip()
+    return any(k in q for k in ["تأخير", "تحليل رحلة", "delayed", "delay", "analyze flight", "flight analysis"])
+
+
+def _extract_flight_number(user_query: str) -> Optional[str]:
+    """محاولة استخراج رقم رحلة من نص المستخدم (مثل SV123 / XY4567 ...)."""
+    q = (user_query or "").upper()
+    # نمط شائع: حرفان/ثلاثة + أرقام 1-5
+    m = re.search(r"\b([A-Z]{2,3}\s*\d{1,5})\b", q)
+    if not m:
+        return None
+    return m.group(1).replace(" ", "")
+
+
+def _to_int_safe(x: Any) -> Optional[int]:
+    try:
+        if x is None:
+            return None
+        if isinstance(x, bool):
+            return int(x)
+        if isinstance(x, (int, float)):
+            return int(x)
+        s = str(x).strip()
+        if not s:
+            return None
+        return int(float(s))
+    except Exception:
+        return None
+
+
+def _parse_hhmm(val: Any) -> Optional[Tuple[int, int]]:
+    """يحاول تحويل HH:MM إلى (hh, mm)."""
+    if val is None:
+        return None
+    s = str(val).strip()
+    if not s:
+        return None
+    m = re.match(r"^(\d{1,2}):(\d{2})", s)
+    if not m:
+        return None
+    return int(m.group(1)), int(m.group(2))
+
+
+def _minutes_diff_hhmm(start_hhmm: Any, end_hhmm: Any) -> Optional[int]:
+    """فرق دقائق بسيط بين وقتين HH:MM مع مراعاة عبور منتصف الليل."""
+    a = _parse_hhmm(start_hhmm)
+    b = _parse_hhmm(end_hhmm)
+    if not a or not b:
+        return None
+    s = a[0] * 60 + a[1]
+    e = b[0] * 60 + b[1]
+    if e < s:
+        e += 24 * 60
+    return e - s
+
+
+def _safe_first(rows: Any) -> Optional[Dict[str, Any]]:
+    if isinstance(rows, list) and rows:
+        return rows[0] if isinstance(rows[0], dict) else None
+    if isinstance(rows, dict):
+        return rows
+    return None
+
+
+def _fetch_one(table_name: str, filters: Dict[str, str], select_query: str = "*") -> Dict[str, Any]:
+    """استدعاء صف واحد من Supabase (بشكل آمن)."""
+    try:
+        rows = nxs_db.execute_dynamic_query(table_name, select_query=select_query, filters=filters)
+        row = _safe_first(rows)
+        return row or {}
+    except Exception:
+        return {}
+
+
+def get_cross_table_bundle(user_query: str) -> Dict[str, Any]:
+    """يجلب حزمة بيانات مترابطة: تشغيلية + تكويد رسمي + غياب + شفت."""
+    flight_number = _extract_flight_number(user_query)
+    if not flight_number:
+        return {}
+
+    # 1) التشغيلية (dep_flight_delay)
+    dep = _fetch_one("dep_flight_delay", {"Flight_Number": f"eq.{flight_number}"}, select_query="*")
+    if not dep:
+        # fallback شائع إذا كان اسم العمود مختلف
+        dep = _fetch_one("dep_flight_delay", {"Flight Number": f"eq.{flight_number}"}, select_query="*")
+
+    # 2) التكويد الرسمي (sgs_flight_delay)
+    sgs = _fetch_one("sgs_flight_delay", {"Flight_Number": f"eq.{flight_number}"}, select_query="*")
+    if not sgs:
+        sgs = _fetch_one("sgs_flight_delay", {"Flight Number": f"eq.{flight_number}"}, select_query="*")
+
+    # 3) بيانات الشفت (shift_report) + الغياب (employee_absence)
+    shift = {}
+    absence = {}
+    dep_date = dep.get("Date") or dep.get("date")
+    dep_shift = dep.get("Shift") or dep.get("shift")
+    if dep_date and dep_shift:
+        # shift_report
+        shift = _fetch_one("shift_report", {"Date": f"eq.{dep_date}", "Shift": f"eq.{dep_shift}"}, select_query="*")
+        # employee_absence (نقص موظفين)
+        absence = _fetch_one("employee_absence", {"Date": f"eq.{dep_date}", "Shift": f"eq.{dep_shift}"}, select_query="*")
+
+    return {
+        "flight_number": flight_number,
+        "dep_flight_delay": dep,
+        "sgs_flight_delay": sgs,
+        "shift_report": shift,
+        "employee_absence": absence,
+    }
+
+
+def analyze_workload_balance(shift_data: dict) -> Dict[str, Any]:
+    """تحليل توازن الجهد/القوى العاملة بناءً على معاييرك."""
+    if not isinstance(shift_data, dict) or not shift_data:
+        return {}
+
+    on_duty = _to_int_safe(shift_data.get("On Duty") or shift_data.get("On_Duty") or shift_data.get("On_Duty"))
+    no_show = _to_int_safe(shift_data.get("No Show") or shift_data.get("No_Show") or shift_data.get("No_Show"))
+    dep_dom = _to_int_safe(shift_data.get("Departures Domestic") or shift_data.get("Departures_Domestic")) or 0
+    dep_int = _to_int_safe(shift_data.get("Departures International+Foreign") or shift_data.get("Departures_Intl") or shift_data.get("Departures_International")) or 0
+    arr_dom = _to_int_safe(shift_data.get("Arrivals Domestic") or shift_data.get("Arrivals_Domestic")) or 0
+    arr_int = _to_int_safe(shift_data.get("Arrivals International+Foreign") or shift_data.get("Arrivals_Intl") or shift_data.get("Arrivals_International")) or 0
+
+    # Total Capacity = On Duty + No Show
+    total_capacity = None if on_duty is None and no_show is None else (on_duty or 0) + (no_show or 0)
+
+    # Workload Matrix (كما ذكرت)
+    total_needed_minutes = (dep_dom + dep_int) * 70 + (arr_dom + arr_int) * 20
+
+    available_minutes = (on_duty or 0) * 8 * 60
+
+    utilization_ratio = None
+    if available_minutes > 0:
+        utilization_ratio = total_needed_minutes / available_minutes
+
+    shortage_percent = None
+    if total_capacity and total_capacity > 0 and on_duty is not None:
+        shortage_percent = ((total_capacity - on_duty) / total_capacity) * 100
+
+    return {
+        "total_capacity": total_capacity,
+        "on_duty": on_duty,
+        "no_show": no_show,
+        "total_needed_minutes": total_needed_minutes,
+        "available_minutes": available_minutes,
+        "utilization_ratio": utilization_ratio,
+        "shortage_percent": shortage_percent,
+    }
+
+
+# منطق معالجة الضغط التشغيلي والقوى العاملة (Manpower & Workload)
+def calculate_operational_capacity(shift_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    يحسب قدرة التشغيل للشفت بناءً على معايير العمل التي زوّدنا بها المستخدم.
+    - إجمالي المطلوب (مغادرة: 70د، قدوم: 20د) — (يُترك تعديل حالات Turnaround لتطوير لاحق)
+    - المتاح: On Duty * 480 دقيقة (شفت 8 ساعات)
+    - Utilization%: نسبة إشغال الجهد من المتاح
+    - Manpower Shortage%: أثر No Show كنسبة من Total Capacity (On Duty + No Show)
+    """
+    if not isinstance(shift_data, dict) or not shift_data:
+        return {"utilization_pct": None, "manpower_shortage_pct": None}
+
+    dep_dom = _to_int_safe(shift_data.get('Departures_Domestic') or shift_data.get('Departures Domestic')) or 0
+    dep_int = _to_int_safe(shift_data.get('Departures_Intl') or shift_data.get('Departures International+Foreign')) or 0
+    arr_dom = _to_int_safe(shift_data.get('Arrivals_Domestic') or shift_data.get('Arrivals Domestic')) or 0
+    arr_int = _to_int_safe(shift_data.get('Arrivals_Intl') or shift_data.get('Arrivals International+Foreign')) or 0
+
+    # إجمالي المطلوب بالدقائق
+    workload_minutes = (dep_dom + dep_int) * 70 + (arr_dom + arr_int) * 20
+
+    on_duty = _to_int_safe(shift_data.get('On_Duty') or shift_data.get('On Duty')) or 0
+    no_show = _to_int_safe(shift_data.get('No_Show') or shift_data.get('No Show')) or 0
+
+    # المتاح بالدقائق (شفت 8 ساعات)
+    available_minutes = on_duty * 480 if on_duty > 0 else 0
+
+    utilization = None
+    if available_minutes > 0:
+        utilization = (workload_minutes / available_minutes) * 100
+
+    total_capacity = on_duty + no_show
+    manpower_shortage = None
+    if total_capacity > 0:
+        manpower_shortage = (no_show / total_capacity) * 100
+
+    return {
+        "utilization_pct": round(utilization, 2) if utilization is not None else None,
+        "manpower_shortage_pct": round(manpower_shortage, 2) if manpower_shortage is not None else None,
+        "workload_minutes": workload_minutes,
+        "available_minutes": available_minutes,
+        "on_duty": on_duty,
+        "no_show": no_show,
+        "total_capacity": total_capacity,
+    }
+
+
+# منطق المحامي الذكي (TCC Advocate)
+def apply_defense_logic(flight_data: Dict[str, Any], mgt_standard: Optional[int]) -> str:
+    """
+    يحدد نبرة الرد وفق بروتوكول الدفاع:
+    - إذا كان الفعلي <= المعيار: دفاع (تبرئة القسم)
+    - غير ذلك: تنبيه ومتابعة التحقيق
+    """
+    if not isinstance(flight_data, dict):
+        return ""
+
+    # دعم مرن لاستخراج "actual_ground_time"
+    actual_ground_time = flight_data.get("actual_ground_time")
+
+    if actual_ground_time is None:
+        # دعم بديل: حساب فرق وقتين HH:MM إن توفر (ATA/ATD)
+        ata = flight_data.get("ATA") or flight_data.get("actual_ata") or flight_data.get("AAT")
+        atd = flight_data.get("ATD") or flight_data.get("actual_atd") or flight_data.get("ADT")
+        diff = _minutes_diff_hhmm(ata, atd) if (ata and atd) else None
+        actual_ground_time = diff
+
+    if actual_ground_time is None or mgt_standard is None:
+        return ""
+
+    try:
+        actual_ground_time = int(actual_ground_time)
+        mgt_standard = int(mgt_standard)
+    except Exception:
+        return ""
+
+    if actual_ground_time <= mgt_standard:
+        return "🛡️ الدفاع: القسم أنجز العمل تحت المعيار الزمني؛ التأخير مرحّل من المصدر."
+    return "⚠️ تنبيه: وقت الدوران تجاوز المعيار، جاري فحص أسباب التحقيق."
+
+
+
+def _build_defense_instruction(bundle: Dict[str, Any]) -> str:
+    """بروتوكول المحامي: إذا كان كود تأخير TCC (15I/15F) نفعل نبرة الدفاع عند تحقق شروط البراءة."""
+    dep = (bundle or {}).get("dep_flight_delay") or {}
+    sgs = (bundle or {}).get("sgs_flight_delay") or {}
+    shift = (bundle or {}).get("shift_report") or {}
+
+    # استخراج كود التأخير من أي مصدر متاح
+    delay_code = (
+        dep.get("Delay Code") or dep.get("Delay_Code") or dep.get("DelayCode") or
+        sgs.get("Delay Code") or sgs.get("Delay_Code") or sgs.get("DelayCode")
+    )
+    code = str(delay_code).strip().upper() if delay_code else ""
+
+    if code not in ("15I", "15F"):
+        return ""
+
+    # حساب الوقت الفعلي على الأرض (تقريبي) من STD/ATD أو STA/ATA
+    actual_ground_time = None
+    std = dep.get("STD") or dep.get("S STD") or dep.get("Scheduled_Dep") or dep.get("SCHED_DEP")
+    atd = dep.get("ATD") or dep.get("A TD") or dep.get("Actual_Dep") or dep.get("ACT_DEP")
+    if std and atd:
+        actual_ground_time = _minutes_diff_hhmm(std, atd)
+
+    if actual_ground_time is None:
+        sta = dep.get("STA") or dep.get("Scheduled_Arr") or dep.get("SCHED_ARR")
+        ata = dep.get("ATA") or dep.get("Actual_Arr") or dep.get("ACT_ARR")
+        if sta and ata:
+            actual_ground_time = _minutes_diff_hhmm(sta, ata)
+
+    # محاولة حساب MGT من ملف القواعد (lookup_mgt)
+    # سنحاول استنتاج أقل حد من الحقول المتاحة بدون كسر النظام.
+    mgt_minutes = None
+    if lookup_mgt is not None:
+        aircraft_type = dep.get("Aircraft_Type") or dep.get("Aircraft Type") or dep.get("AC Type")
+        movement = dep.get("Movement") or dep.get("Flight Movement") or dep.get("Flight Movement Type")
+        station = dep.get("Station") or dep.get("ORG") or dep.get("Origin")
+        destination = dep.get("Destination") or dep.get("DES") or dep.get("Arrival Destination") or dep.get("Departure Destination")
+        # إذا لم تتوفر، لا نُجبر النظام على الاستنتاج
+        if aircraft_type and movement and station:
+            try:
+                r = lookup_mgt(
+                    operation="TURNAROUND",
+                    aircraft_group=str(aircraft_type),
+                    movement=str(movement),
+                    station=str(station),
+                    destination_station=str(destination) if destination else None,
+                    is_security_alert_station=False,
+                    apply_local_towing_rule=False,
+                )
+                mgt_minutes = getattr(r, "final_mgt_minutes", None)
+            except Exception:
+                mgt_minutes = None
+
+    # تعليمات الدفاع تُفعّل عند تحقق شرط البراءة
+    if actual_ground_time is not None and mgt_minutes is not None and actual_ground_time <= mgt_minutes:
+        # دعم إضافي: ربط No Show كسبب جذري إن وجد
+        wb = analyze_workload_balance(shift) if shift else {}
+    cap = calculate_operational_capacity(shift) if shift else {}
+        no_show = wb.get("no_show")
+        shortage = wb.get("shortage_percent")
+        extra = ""
+        if no_show is not None and no_show > 0:
+            extra = f"\n- ملاحظة قانونية: يوجد No Show = {no_show} في نفس الشفت، ما يرفع الضغط التشغيلي."
+            if shortage is not None:
+                extra += f"\n- تقدير العجز في القوى العاملة ≈ {shortage:.1f}%."  # نسبة تقريبية
+
+        defense_msg = apply_defense_logic({"actual_ground_time": actual_ground_time}, mgt_minutes)
+
+        return f"""
+أنت الآن 'المحامي الذكي لـ TCC' (The Defense Protocol).
+المعطيات:
+- كود التأخير: {code}
+- الوقت الفعلي على الأرض: {actual_ground_time} دقيقة.
+- المعيار القانوني (MGT): {mgt_minutes} دقيقة.
+الحكم:
+- {defense_msg}
+- بما أن الفعلي <= المعيار، دافع بقوة وأثبت أن القسم غير مسؤول، ووضح أن الأداء يُعد إنجازاً تشغيلياً.
+{extra}
+""".strip()
+
+    return ""
+
+
+def _build_operational_context(bundle: Dict[str, Any]) -> Dict[str, Any]:
+    """حقن سياق عمليات يساعد على فهم النوايا (Intent Intelligence)."""
+    dep = (bundle or {}).get("dep_flight_delay") or {}
+    shift = (bundle or {}).get("shift_report") or {}
+
+    # مثال: تأخير دقائق قليلة مع وصول متأخر = إنجاز
+    delay_minutes = _to_int_safe(dep.get("Delay Minutes") or dep.get("Delay_Min") or dep.get("Delay_Minutes"))
+    late_arrival = None
+    sta = dep.get("STA")
+    ata = dep.get("ATA")
+    if sta and ata:
+        ad = _minutes_diff_hhmm(sta, ata)
+        if ad is not None:
+            late_arrival = ad > 0
+
+    wb = analyze_workload_balance(shift) if shift else {}
+    cap = calculate_operational_capacity(shift) if shift else {}
+
+    return {
+        "intent_rules": {
+            "treat_small_delay_with_late_arrival_as_success": True,
+            "small_delay_threshold_minutes": 5,
+        },
+        "signals": {
+            "delay_minutes": delay_minutes,
+            "late_arrival": late_arrival,
+        },
+        "manpower": {"balance": wb, "capacity": cap},
+    }
 
 
 # =================== الدالة الرئيسية: nxs_brain ===================
@@ -479,12 +845,30 @@ def nxs_brain(message: str) -> Tuple[str, Dict[str, Any]]:
         # 2) تنفيذ الخطة على Supabase
         data_results = execute_plan(plan)
 
+        # =================== منطق الاستدلال المتقدم (Patch فقط) ===================
+        cross_table_bundle = {}
+        extra_system_instruction = ""
+        operational_context = None
+
+        if _is_flight_delay_query(message):
+            cross_table_bundle = get_cross_table_bundle(message)
+            # بروتوكول المحامي
+            extra_system_instruction = _build_defense_instruction(cross_table_bundle)
+            # سياق العمليات (Intent Intelligence + Manpower)
+            operational_context = _build_operational_context(cross_table_bundle)
+
+            # ربط هذه البيانات مع حزمة البيانات الرئيسية قبل إرسالها للمحرك
+            if cross_table_bundle:
+                data_results["cross_table"] = cross_table_bundle
+
         # 3) بناء برومبت الإجابة
         answer_prompt = build_answer_prompt(
             user_message=message,
             language=language,
             planner_notes=notes,
             data_bundle=data_results,
+            extra_system_instruction=extra_system_instruction,
+            operational_context=operational_context,
         )
 
         # 4) استدعاء محرك الذكاء لصياغة الإجابة
