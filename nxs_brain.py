@@ -462,6 +462,13 @@ def nxs_brain(message: str) -> Tuple[str, Dict[str, Any]]:
 
     meta: Dict[str, Any] = {"ok": False}
 
+    # مسار سريع لقواعد GOPM (MGT/Turnaround/Transit/Activity Breakdown)
+    # هذا المسار لا يستخدم Supabase ولا يلمس منطق خطط TCC.
+    if _is_gopm_question(message):
+        answer_text, gmeta = _gopm_answer(message)
+        meta.update(gmeta or {})
+        return answer_text, meta
+
     try:
         # 1) التخطيط
         planner_info = run_planner(message)
@@ -855,4 +862,283 @@ def generate_strategic_plan(annual_manpower_cost: int = 75000, otp_increase: flo
         "staff_needed": staff_needed,
     }
         
-    return analysis_result, meta_data
+    return analysis_result, meta_dat
+# =================== GOPM (Aircraft Ramp Handling) Rules ===================
+# هذه القواعد مأخوذة من جداول GOPM التي زوّدنا بها المستخدم (MGT + Activity Breakdown + Hints).
+# ملاحظة: ملف القواعد منفصل لتسهيل الصيانة وعدم خلطه مع منطق Supabase/TCC.
+
+import re  # used by GOPM helpers
+from typing import Optional  # used by GOPM helpers
+
+try:
+    from nxs_gopm_rules import (
+        lookup_mgt,
+        lookup_activity_breakdown,
+        get_aircraft_delivery_before_std_hours,
+    )
+except Exception:
+    lookup_mgt = None
+    lookup_activity_breakdown = None
+    get_aircraft_delivery_before_std_hours = None
+
+_GOPM_DEST_SPECIAL = {"USA", "KAN", "SSH", "JFK", "LAX", "IAD", "YYZ", "MNL", "CAN", "KUL", "CGK", "SIN"}
+
+_AIRCRAFT_ALIASES = [
+    (re.compile(r"\bB777\b|777|B787-10|787-10|B787\s*10", re.I), "B777-368/B787-10"),
+    (re.compile(r"A330|B787-9|787-9|B787\s*9", re.I), "A330/B787-9"),
+    (re.compile(r"A321|A320", re.I), "A321/A320"),
+    (re.compile(r"B757|757", re.I), "B757"),
+]
+
+def _looks_arabic(text: str) -> bool:
+    return bool(re.search(r"[\u0600-\u06FF]", text or ""))
+
+def _preferred_lang(message: str) -> str:
+    m = (message or "")
+    if re.search(r"\b(arabic|عربي|arab)\b", m, re.I):
+        return "ar"
+    if re.search(r"\b(english|انجليزي|إنجليزي)\b", m, re.I):
+        return "en"
+    return "ar" if _looks_arabic(m) else "en"
+
+def _is_gopm_question(message: str) -> bool:
+    m = (message or "").lower()
+    keywords = [
+        "gopm", "mgt", "turnaround", "transit", "activity breakdown", "ramp handling",
+        "تورناروند", "ترانزيت", "ترانزت", "وقت ارضي", "وقت الأرض", "الحد الأدنى", "مناولة",
+        "b777", "b787", "a330", "a321", "a320", "b757",
+        "jed", "ruh", "dmm", "med", "lhr", "ssh", "usa", "kan", "jfk", "lax", "iad", "yyz", "mnl", "can", "kul", "cgk", "sin",
+    ]
+    return any(k in m for k in keywords)
+
+def _extract_operation(message: str) -> Optional[str]:
+    m = (message or "").lower()
+    if "turnaround" in m or "تورناروند" in m or "turn around" in m:
+        return "TURNAROUND"
+    if "transit" in m or "ترانزيت" in m or "ترانزت" in m:
+        return "TRANSIT"
+    return None
+
+def _extract_movement(message: str) -> Optional[str]:
+    m = (message or "").upper().replace(" ", "").replace("_", "-")
+    for mv in ["DOM-DOM", "DOM-INTL", "INTL-DOM", "INTL-INTL"]:
+        if mv in m:
+            return mv
+    if "داخلي" in (message or "") and "دولي" in (message or ""):
+        if re.search(r"داخلي.*دولي", message):
+            return "DOM-INTL"
+        if re.search(r"دولي.*داخلي", message):
+            return "INTL-DOM"
+    return None
+
+def _extract_aircraft_group(message: str) -> Optional[str]:
+    for rx, group in _AIRCRAFT_ALIASES:
+        if rx.search(message or ""):
+            return group
+    return None
+
+def _extract_station(message: str) -> Optional[str]:
+    m = (message or "").upper()
+    if "LONG HAUL" in m or "LONG_HAUL" in m:
+        return "LONG_HAUL_STN"
+    if "INT STNS" in m or "INT_STNS" in m:
+        return "INT_STNS"
+    if "OTHER DOM" in m or "OTHER_DOM" in m:
+        return "OTHER_DOM_STN"
+    if "AHB/TUU" in m or re.search(r"\bAHB\b", m) or re.search(r"\bTUU\b", m):
+        return "AHB/TUU"
+    for code in ["JED", "RUH", "DMM", "MED", "LHR", "UK"]:
+        if re.search(rf"\b{code}\b", m):
+            return code
+    return None
+
+def _extract_destination(message: str) -> Optional[str]:
+    m = (message or "").upper()
+    if re.search(r"\bUSA\b", m):
+        return "USA"
+    if re.search(r"\bKAN\b", m):
+        return "KAN"
+    if re.search(r"\bSSH\b", m):
+        return "SSH"
+    codes = re.findall(r"\b[A-Z]{3}\b", m)
+    for c in codes:
+        if c in _GOPM_DEST_SPECIAL:
+            return c
+    return None
+
+def _extract_flags(message: str) -> tuple[bool, bool]:
+    m = (message or "").lower()
+    is_sa = ("(sa)" in m) or ("security alert" in m) or ("تنبيه أمني" in m) or ("امني" in m)
+    towing = ("towing" in m) or ("سحب" in m) or ("قطر" in m) or ("jed-t1" in m) or ("local mgt" in m)
+    return is_sa, towing
+
+def _format_time_hhmm(minutes: int) -> str:
+    hh = minutes // 60
+    mm = minutes % 60
+    return f"{hh:02d}:{mm:02d}"
+
+def _gopm_answer(message: str) -> tuple[str, dict]:
+    # يرجع (answer_text, meta). لا يعتمد على Supabase.
+    if lookup_mgt is None:
+        return (
+            "⚠️ ملف قواعد GOPM غير متوفر داخل الخادم حالياً.\n"
+            "تأكد من رفع الملف: nxs_gopm_rules.py ضمن نفس مشروع النشر.",
+            {"ok": False, "stage": "gopm_missing_rules"},
+        )
+
+    lang = _preferred_lang(message)
+    op = _extract_operation(message)
+    mv = _extract_movement(message)
+    ac = _extract_aircraft_group(message)
+    st = _extract_station(message)
+    dest = _extract_destination(message)
+    is_sa, towing = _extract_flags(message)
+
+    wants_activity = bool(re.search(r"activity\s*breakdown|activities|تفصيل|تفاصيل|بنود|بند", message or "", re.I))
+    wants_delivery = bool(re.search(r"delivery\s*time|before\s*std|Aircraft\s*Delivery|تسليم|قبل\s*std", message or "", re.I))
+
+    meta = {
+        "ok": True,
+        "stage": "gopm_answer",
+        "lang": lang,
+        "parsed": {
+            "operation": op,
+            "movement": mv,
+            "aircraft_group": ac,
+            "station": st,
+            "destination_station": dest,
+            "is_security_alert_station": is_sa,
+            "apply_local_towing_rule": towing,
+            "wants_activity": wants_activity,
+            "wants_delivery": wants_delivery,
+        },
+    }
+
+    if wants_delivery:
+        if not ac:
+            txt = "اذكر نوع الطائرة (مثل A321 أو B777) لأحدد Delivery time." if lang == "ar" else "Please mention the aircraft type (e.g., A321 or B777) so I can return the delivery time."
+            return txt, meta
+        hours = get_aircraft_delivery_before_std_hours(ac) if get_aircraft_delivery_before_std_hours else None
+        if hours is None:
+            txt = "لا يوجد وقت تسليم معرف لهذا النوع." if lang == "ar" else "No delivery time is defined for this aircraft group."
+            return txt, meta
+        if lang == "ar":
+            return f"🛫 وقت تسليم الطائرة (من الهنجر إلى البوابة) قبل STD: **{hours:.0f} ساعة**\n✈️ النوع: {ac}", meta
+        return f"🛫 Aircraft delivery time (Hangar → Parking Gate) before STD: **{hours:.0f} hours**\n✈️ Aircraft group: {ac}", meta
+
+    if wants_activity:
+        if not ac:
+            txt = "اذكر نوع الطائرة (مثل B757 أو A321/A320 أو A330/B787-9 أو B777-368/B787-10) لأعرض Activity Breakdown." if lang == "ar" else "Please provide an aircraft type (B757, A321/A320, A330/B787-9, or B777-368/B787-10) to show the Activity Breakdown."
+            return txt, meta
+        if not op:
+            txt = "حدد هل هي Turnaround أم Transit." if lang == "ar" else "Please specify whether it's Turnaround or Transit."
+            return txt, meta
+        if not mv:
+            txt = "حدد نوع الحركة: DOM-DOM أو DOM-INTL أو INTL-DOM أو INTL-INTL." if lang == "ar" else "Please specify movement: DOM-DOM, DOM-INTL, INTL-DOM, or INTL-INTL."
+            return txt, meta
+
+        try:
+            br = lookup_activity_breakdown(ac if ac != "A330/B787-9" else "A330/B787-9", op, mv)
+        except Exception as e:
+            txt = f"تعذر استخراج Activity Breakdown: {e}" if lang == "ar" else f"Failed to fetch Activity Breakdown: {e}"
+            return txt, meta
+
+        lines = []
+        if lang == "ar":
+            lines += [f"🧾 **Activity Breakdown**", f"✈️ النوع: {ac}", f"🔁 العملية: {op}", f"📌 الحركة: {mv}", ""]
+            for item in br.items:
+                v = item.value
+                if v is None:
+                    v_txt = "—"
+                elif isinstance(v, (int, float)) and float(v).is_integer():
+                    v_txt = f"{int(v)} دقيقة"
+                else:
+                    v_txt = str(v)
+                lines.append(f"• {item.activity}: {v_txt}")
+            if br.total_minutes is not None:
+                lines += ["", f"⏱️ الإجمالي: **{br.total_minutes} دقيقة**"]
+            if br.assumptions:
+                lines += ["", "📌 افتراضات/ملاحظات:"]
+                lines += [f"- {a}" for a in br.assumptions]
+            return "\n".join(lines), meta
+
+        lines += ["🧾 **Activity Breakdown**", f"✈️ Aircraft: {ac}", f"🔁 Operation: {op}", f"📌 Movement: {mv}", ""]
+        for item in br.items:
+            v = item.value
+            if v is None:
+                v_txt = "—"
+            elif isinstance(v, (int, float)) and float(v).is_integer():
+                v_txt = f"{int(v)} min"
+            else:
+                v_txt = str(v)
+            lines.append(f"• {item.activity}: {v_txt}")
+        if br.total_minutes is not None:
+            lines += ["", f"⏱️ Total: **{br.total_minutes} min**"]
+        if br.assumptions:
+            lines += ["", "📌 Assumptions/Notes:"]
+            lines += [f"- {a}" for a in br.assumptions]
+        return "\n".join(lines), meta
+
+    if not op:
+        txt = "حدد هل سؤالك عن Turnaround أم Transit." if lang == "ar" else "Please specify whether you mean Turnaround or Transit."
+        return txt, meta
+    if not mv:
+        txt = "حدد نوع الحركة: DOM-DOM أو DOM-INTL أو INTL-DOM أو INTL-INTL." if lang == "ar" else "Please specify movement: DOM-DOM, DOM-INTL, INTL-DOM, or INTL-INTL."
+        return txt, meta
+    if not ac:
+        txt = "اذكر نوع الطائرة (مثل B777 أو A330 أو A321 أو B757)." if lang == "ar" else "Please mention the aircraft type (e.g., B777, A330, A321, or B757)."
+        return txt, meta
+    if not st:
+        txt = "اذكر المحطة (مثل JED أو RUH أو DMM أو MED أو INT STNS أو LONG HAUL STN)." if lang == "ar" else "Please mention the station (e.g., JED, RUH, DMM, MED, INT STNS, LONG HAUL STN)."
+        return txt, meta
+
+    try:
+        r = lookup_mgt(
+            operation=op,
+            aircraft_group=ac,
+            movement=mv,
+            station=st,
+            destination_station=dest,
+            is_security_alert_station=is_sa,
+            apply_local_towing_rule=towing,
+        )
+    except Exception as e:
+        txt = f"تعذر حساب MGT: {e}" if lang == "ar" else f"Failed to calculate MGT: {e}"
+        return txt, meta
+
+    if lang == "ar":
+        parts = [
+            "⏱️ **Minimum Ground Time (MGT)**",
+            f"✈️ النوع: {ac}",
+            f"🔁 العملية: {op}",
+            f"📌 الحركة: {mv}",
+            f"🏷️ المحطة: {st}",
+        ]
+        if dest:
+            parts.append(f"🎯 الوجهة/القيّد: {dest}")
+        if r.base_mgt_minutes is not None:
+            parts.append(f"🧮 MGT الأساسي من الجدول: **{_format_time_hhmm(r.base_mgt_minutes)}**")
+        parts.append(f"✅ النتيجة النهائية: **{_format_time_hhmm(r.final_mgt_minutes)}**")
+        if r.applied_rules:
+            parts += ["", "📌 قواعد تم تطبيقها:"]
+            parts += [f"- {rule}" for rule in r.applied_rules]
+        return "\n".join(parts), meta
+
+    parts = [
+        "⏱️ **Minimum Ground Time (MGT)**",
+        f"✈️ Aircraft: {ac}",
+        f"🔁 Operation: {op}",
+        f"📌 Movement: {mv}",
+        f"🏷️ Station: {st}",
+    ]
+    if dest:
+        parts.append(f"🎯 Destination/Constraint: {dest}")
+    if r.base_mgt_minutes is not None:
+        parts.append(f"🧮 Base MGT from table: **{_format_time_hhmm(r.base_mgt_minutes)}**")
+    parts.append(f"✅ Final result: **{_format_time_hhmm(r.final_mgt_minutes)}**")
+    if r.applied_rules:
+        parts += ["", "📌 Applied rules:"]
+        parts += [f"- {rule}" for rule in r.applied_rules]
+    return "\n".join(parts), meta
+
+a
