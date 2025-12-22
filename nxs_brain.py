@@ -31,6 +31,11 @@ import nxs_supabase_client as nxs_db
 
 
 from nxs_semantic_engine import NXSSemanticEngine
+try:
+    from nxs_semantic_engine import interpret_with_filters
+except Exception:
+    interpret_with_filters = None
+
 
 
 # =================== تحميل متغيرات البيئة ===================
@@ -42,16 +47,14 @@ GEMINI_API_KEY = (
     or os.getenv("GEMINI_API_KEY")
     or os.getenv("GENAI_API_KEY")
 )
-GEMINI_MODEL   = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash")
-
-
-
+GEMINI_MODEL_SIMPLE  = os.getenv("GEMINI_MODEL_SIMPLE",  "gemini-2.5-flash")
+GEMINI_MODEL_COMPLEX = os.getenv("GEMINI_MODEL_COMPLEX", "gemini-2.5-pro")
+GEMINI_MODEL_PLANNER = os.getenv("GEMINI_MODEL_PLANNER", "gemini-2.5-flash")
 logger = logging.getLogger("nxs_brain")
 
 
 try:
-    # NOTE: Forced OFF to avoid legacy SDK (v1beta) calls causing 404 with Pro models.
-    SEMANTIC_ENGINE: Optional[NXSSemanticEngine] = None
+    SEMANTIC_ENGINE: Optional[NXSSemanticEngine] = NXSSemanticEngine()
 except Exception:
     SEMANTIC_ENGINE = None
 
@@ -215,7 +218,7 @@ def call_ai(prompt: str, model_name: str = None, temperature: float = 0.4, max_t
         return "ERROR: GEMINI_API_KEY_MISSING"
 
     # 1) تحديد الموديل: نستخدم الممرر للدالة أو المسجل في الإعدادات
-    target_model = model_name if model_name else GEMINI_MODEL_NAME
+    target_model = model_name if model_name else GEMINI_MODEL_SIMPLE
 
     # 2) الرابط الصحيح والمستقر (استخدام v1 بدلاً من v1beta)
     url = f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
@@ -254,8 +257,9 @@ def call_ai(prompt: str, model_name: str = None, temperature: float = 0.4, max_t
 
 def semantic_pre_analyze(user_message: str) -> Optional[Dict[str, Any]]:
     """
-    تحليل مسبق باستخدام طبقة NXS Semantics (القاموس + المقاييس).
-    إذا تعذر التحميل أو حدث خطأ، يتم إرجاع None بدون كسر النظام.
+    تحليل مسبق باستخدام طبقة NXS Semantics.
+    - إذا توفر interpret_with_filters: يرجع interpretation + plan + detected_filters + complexity_hint + model_hint.
+    - وإلا: يرجع interpretation.to_dict() فقط.
     """
     if SEMANTIC_ENGINE is None:
         return None
@@ -263,10 +267,35 @@ def semantic_pre_analyze(user_message: str) -> Optional[Dict[str, Any]]:
     if not msg:
         return None
     try:
+        if interpret_with_filters:
+            return interpret_with_filters(SEMANTIC_ENGINE, msg)
         interp = SEMANTIC_ENGINE.interpret(msg)
         return interp.to_dict()
     except Exception:
         return None
+
+
+# =================== Planner Prompt (Fallback) ===================
+# إذا كان لديك ملف intents/schema مخصص يمكنك نقل هذا النص هناك.
+PLANNER_PROMPT = """أنت مخطط (Planner) لنظام NXS.
+مهمتك: تحويل سؤال المستخدم إلى JSON يحتوي:
+{
+  "language": "ar|en",
+  "plan": [
+    {
+      "tool": "<اسم_الدالة>",
+      "args": { ... }
+    }
+  ],
+  "notes": "<ملاحظات قصيرة>"
+}
+
+القواعد:
+- أعد JSON فقط بدون أي شرح.
+- اختر أقل عدد ممكن من الأدوات لتحقيق الهدف.
+- استخدم أدوات nxs_supabase_client فقط.
+- إذا السؤال عام ولا يحتاج بيانات: اجعل plan فارغاً [] وnotes تشرح ذلك.
+"""
 
 
 def build_planner_prompt(user_message: str, semantic_info: Optional[Dict[str, Any]] = None) -> str:
@@ -290,7 +319,7 @@ def run_planner(user_message: str) -> Dict[str, Any]:
 
     raw = call_ai(
         prompt,
-        model_name="gemini-1.5-flash",
+        model_name=GEMINI_MODEL_PLANNER,
         temperature=0.2,
         max_tokens=1200,
     )
@@ -298,7 +327,10 @@ def run_planner(user_message: str) -> Dict[str, Any]:
     data = _safe_json_loads(raw)
     if not data or not isinstance(data, dict):
         # فشل التحليل، نعيد خطة فارغة لكن لا نكسر التنفيذ
-        return {"language": "ar", "plan": [], "notes": "no-structured-plan", "semantic": semantic_info}
+        out = {"language": "ar", "plan": [], "notes": "no-structured-plan", "semantic": semantic_info}
+        if isinstance(semantic_info, dict):
+            out["semantic_hints"] = semantic_info
+        return out
 
     # ضمان الحقول الأساسية
     lang = data.get("language") or "ar"
@@ -308,7 +340,10 @@ def run_planner(user_message: str) -> Dict[str, Any]:
     if not isinstance(plan, list):
         plan = []
     notes = data.get("notes") or ""
-    return {"language": lang, "plan": plan, "notes": notes, "semantic": semantic_info}
+    out = {"language": lang, "plan": plan, "notes": notes, "semantic": semantic_info}
+    if isinstance(semantic_info, dict):
+        out["semantic_hints"] = semantic_info
+    return out
 
 
 
@@ -446,7 +481,24 @@ def nxs_brain(message: str) -> Tuple[str, Dict[str, Any]]:
         )
 
         # 4) استدعاء محرك الذكاء لصياغة الإجابة
-        answer_text = call_ai(answer_prompt)
+        #    اختيار الموديل للإجابة (Flash/Pro) بناءً على تلميحات Semantics + تعقيد الخطة
+        answer_model = None
+        try:
+            sem = (planner_info or {}).get("semantic_hints") or (planner_info or {}).get("semantic") or {}
+            mh = sem.get("model_hint") if isinstance(sem, dict) else None
+            if isinstance(mh, dict):
+                answer_model = mh.get("model")
+        except Exception:
+            answer_model = None
+
+        if not answer_model:
+            # fallback: إذا الخطة طويلة/معقدة نستخدم Pro
+            if isinstance(plan, list) and len(plan) >= 2:
+                answer_model = GEMINI_MODEL_COMPLEX
+            else:
+                answer_model = GEMINI_MODEL_SIMPLE
+
+        answer_text = call_ai(answer_prompt, model_name=answer_model)
 
         meta.update(
             {
