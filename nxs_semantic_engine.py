@@ -430,6 +430,167 @@ class NXSSemanticEngine:
         )
 # ============== طبقة تخطيط الاستعلام (Query Planning) ==============
 
+def detect_gopm_intent(query: str) -> Dict[str, Any]:
+    """
+    يحدد إن كان السؤال متعلقًا بقواعد/جداول GOPM (MGT / Turnaround / Transit / Activity Breakdown).
+
+    يرجع قاموسًا خفيفًا (لا يكسر أي طبقات أخرى) مثل:
+    {
+      "is_gopm": bool,
+      "category": "mgt" | "activity" | "delivery" | None,
+      "operation": "turnaround" | "transit" | "mixed" | None,
+      "stations": [...],        # مثل RUH/JED/DMM/MED/AHB/TUU/LHR/UK
+      "destinations": [...],    # مثل JFK/LAX/SSH/USA/KAN...
+      "aircraft": [...],        # مثل B777-368/B787-10, A330/B787-9, A321/A320, B757 ...
+      "flow": "DOM-DOM" | "DOM-INTL" | "INTL-DOM" | "INTL-INTL" | None,
+    }
+
+    ملاحظة: هذه الدالة لا تحسب الأوقات؛ فقط تصنيف/توجيه.
+    """
+    q = normalize_text(query)
+    if not q:
+        return {
+            "is_gopm": False,
+            "category": None,
+            "operation": None,
+            "stations": [],
+            "destinations": [],
+            "aircraft": [],
+            "flow": None,
+        }
+
+    # كلمات مفتاحية (AR/EN) لـ GOPM
+    gopm_markers = [
+        "gopm", "mgt", "minimum ground time", "ground time",
+        "turnaround", "transit", "activity breakdown", "ramp handling",
+        "blocks in", "blocks out", "pushback", "door opening", "door clsd",
+        "cabin cleaning", "galley", "catering", "pax", "disembarkation", "embarkation",
+        "scheduled operations", "delivery before std", "ex-scheduled maintenance",
+        # عربي
+        "وقت الارض", "وقت الأرض", "الحد الادنى", "الحد الأدنى", "الزمن الارضى",
+        "ترانزيت", "ترانزت", "ترانست", "ترانز", "ترانزت", "تيرن", "تيرن اراوند",
+        "تيرناروند", "دوران", "تفصيل", "تفصيل الانشطة", "تفصيل الأنشطة",
+        "تنظيف", "تموين", "كاترينج", "بوابة", "دفع", "سحب", "بوش باك",
+    ]
+
+    is_gopm = any(m in q for m in gopm_markers)
+
+    # Operation
+    operation = None
+    if "turnaround" in q or "تيرن" in q or "دوران" in q:
+        operation = "turnaround"
+        is_gopm = True
+    if "transit" in q or "تران" in q:
+        # إذا وجد المصطلحين معاً نعتبره mixed
+        if operation == "turnaround":
+            operation = "mixed"
+        else:
+            operation = "transit"
+        is_gopm = True
+    if "mixed flight" in q or "mixed flights" in q or "رحلات مختلطة" in q or "مختلط" in q:
+        operation = "mixed"
+        is_gopm = True
+
+    # Category (MGT جدول / Activity Breakdown / Delivery)
+    category = None
+    if any(x in q for x in ["mgt", "minimum ground time", "scheduled operations", "وقت الارض", "وقت الأرض", "الحد الادنى", "الحد الأدنى"]):
+        category = "mgt"
+    if any(x in q for x in ["activity breakdown", "تفصيل", "activities", "انشطة", "أنشطة"]):
+        category = "activity"
+    if any(x in q for x in ["delivery before std", "delivery", "hangar", "maintenance", "تسليم", "الصيانة"]):
+        category = "delivery"
+
+    # Stations (أكواد)
+    station_codes = ["JED", "RUH", "DMM", "MED", "AHB", "TUU", "LHR", "UK"]
+    stations = []
+    for s in station_codes:
+        if re.search(rf"\b{s.lower()}\b", q):
+            stations.append(s)
+
+    # Destination / special stations / groups
+    # ملاحظة: USA/KAN/SSH/LONG-HAUL/INT STNS ليست ICAO/IATA دائماً لكنها قيود بالنص
+    dest_codes = ["JFK", "LAX", "IAD", "YYZ", "CAN", "MNL", "KUL", "CGK", "SIN", "SSH", "KAN", "USA"]
+    destinations = []
+    for d in dest_codes:
+        if re.search(rf"\b{d.lower()}\b", q):
+            destinations.append(d)
+
+    if "long haul" in q or "long-haul" in q or "رحلات بعيدة" in q or "بعيدة" in q:
+        destinations.append("LONG_HAUL")
+        is_gopm = True
+    if "int stns" in q or "int stations" in q or "محطات دولية" in q:
+        destinations.append("INT_STNS")
+        is_gopm = True
+    if "(sa)" in q or "security alert" in q or "تنبيه امني" in q or "أمني" in q:
+        destinations.append("SA")
+        is_gopm = True
+
+    # Aircraft families (محاولة التقاط متسامحة)
+    aircraft = []
+    # B777-368 / B787-10
+    if re.search(r"b?777[-\s]?368|787[-\s]?10|b787[-\s]?10|777[-\s]?368", q):
+        aircraft.append("B777-368/B787-10")
+        is_gopm = True
+    # B777-268 / A330 (مذكورة في الجدول المختلط)
+    if re.search(r"777[-\s]?268|b?777[-\s]?268", q) and ("a330" in q or "airbus 330" in q):
+        aircraft.append("B777-268/A330")
+        is_gopm = True
+    # A330 / B787-9
+    if "a330" in q or "787-9" in q or "b787-9" in q or "b787[-\s]?9" in q:
+        aircraft.append("A330/B787-9")
+        is_gopm = True
+    # A321 / A320
+    if "a321" in q or "a320" in q:
+        aircraft.append("A321/A320")
+        is_gopm = True
+    # B757
+    if "b757" in q or "757" in q:
+        aircraft.append("B757")
+        is_gopm = True
+
+    # Flow DOM/INTL
+    flow = None
+    # english patterns
+    if "dom-dom" in q or "dom / dom" in q:
+        flow = "DOM-DOM"
+    elif "dom-intl" in q or "dom-int" in q or "dom intl" in q:
+        flow = "DOM-INTL"
+    elif "intl-dom" in q or "int-dom" in q or "intl dom" in q:
+        flow = "INTL-DOM"
+    elif "intl-intl" in q or "int-int" in q:
+        flow = "INTL-INTL"
+
+    # arabic hints (تقريبي)
+    if flow is None:
+        if ("محلي" in q and "محلي" in q.replace("محلي", "", 1)):
+            flow = "DOM-DOM"
+        elif "محلي" in q and ("دولي" in q or "خارجي" in q):
+            flow = "DOM-INTL"
+        elif ("دولي" in q or "خارجي" in q) and "محلي" in q:
+            flow = "INTL-DOM"
+        elif ("دولي" in q or "خارجي" in q) and ("دولي" in q.replace("دولي", "", 1) or "خارجي" in q.replace("خارجي", "", 1)):
+            flow = "INTL-INTL"
+
+    # إن لم يتم تحديد category لكن GOPM markers موجودة
+    if is_gopm and category is None:
+        # الأفضل أن نميل لـ mgt إن وُجدت كودات محطات، وإلا activity إن وُجدت قائمة أنشطة
+        if stations or destinations:
+            category = "mgt"
+        else:
+            category = "activity"
+
+    return {
+        "is_gopm": bool(is_gopm),
+        "category": category,
+        "operation": operation,
+        "stations": sorted(list(dict.fromkeys(stations))),  # preserve unique
+        "destinations": sorted(list(dict.fromkeys(destinations))),
+        "aircraft": sorted(list(dict.fromkeys(aircraft))),
+        "flow": flow,
+    }
+
+
+
 def _extract_limit_from_text(text: str, default: int = 10) -> int:
     """
     يحاول استنتاج قيمة LIMIT من السؤال مثل:
@@ -510,13 +671,20 @@ def build_query_plan(engine: "NXSSemanticEngine", query: str) -> Dict[str, Any]:
 
     plan["group_by"] = _default_group_by_for_entity(plan["entity"])
 
+    # GOPM auto-route (rules engine) + model recommendation
+    gopm_intent = detect_gopm_intent(interp.normalized_query or query)
+    if gopm_intent.get("is_gopm"):
+        plan["route"] = "gopm"
+        plan["gopm"] = gopm_intent
+
+    complexity = estimate_complexity(query)
+    plan["complexity"] = complexity
+    plan["recommended_model"] = recommend_gemini_model(complexity["tier"])
+
     return {
         "interpretation": interp.to_dict(),
         "plan": plan,
     }
-
-
-
 # ============== مثال تشغيل مباشر (للاختبار اليدوي) ==============
 
 if __name__ == "__main__":
@@ -644,6 +812,34 @@ def estimate_complexity(
     reasons = []
     score = 0
 
+    # GOPM domain signal (MGT/Transit/Turnaround/Activity Breakdown)
+    gopm_intent = detect_gopm_intent(q_norm)
+    if gopm_intent.get("is_gopm"):
+        reasons.append("GOPM: سؤال أوقات/قواعد من GOPM")
+
+        # إذا كان السؤال يحتوي عدة عناصر (محطات/وجهات/طائرات) يصبح أقرب للتعقيد
+        multi = 0
+        multi += max(0, len(gopm_intent.get("stations", [])) - 1)
+        multi += max(0, len(gopm_intent.get("destinations", [])) - 1)
+        multi += max(0, len(gopm_intent.get("aircraft", [])) - 1)
+
+        if gopm_intent.get("operation") == "mixed":
+            multi += 1
+        if multi >= 3:
+            score += 25
+            reasons.append("GOPM متعدد القيود (عدة محطات/وجهات/طائرات)")
+        elif multi == 2:
+            score += 15
+            reasons.append("GOPM قيود متعددة (أكثر من عنصر)")
+        elif multi == 1:
+            score += 8
+            reasons.append("GOPM مع عنصر إضافي")
+
+        # أسئلة الشرح/السبب/التبرير
+        if any(k in q_norm for k in ["why","explain","because","reason","justify","clarify",
+                                     "ليش","لماذا","اشرح","فسر","سبب","تبرير","وضح"]):
+            score += 10
+            reasons.append("طلب تفسير/سبب")
     # طول السؤال
     if tok_len >= 18:
         score += 20
