@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "tables": [
     {
       "name": "dep_flight_delay",
@@ -1837,8 +1837,8 @@
     {
       "name": "shift_report",
       "label_en": "Shift Report",
-      "label_ar": "تقرير الشفت",
-      "entity_type": "shift_report",
+      "label_ar": "تقرير المناوبة والقوى العاملة",
+      "entity_type": "workforce_ops",
       "role": "summary",
       "primary_key": [
         "Title"
@@ -1848,12 +1848,26 @@
       "columns": [
         {
           "original_name": "Arrivals Domestic",
-          "canonical_name": "arrivals_domestic",
+          "canonical_name": "arr_dom_count",
           "data_type": "bigint",
-          "semantic_type": "count",
+          "semantic_type": "workload_trigger",
           "is_nullable": true,
           "is_primary_key": false,
-          "is_foreign_key": false
+          "is_foreign_key": false,
+          "synonyms_ar": [
+            "قدوم داخلي",
+            "وصول داخلي",
+            "ضغط",
+            "حمولة العمل",
+            "الضغط التشغيلي"
+          ],
+          "synonyms_en": [
+            "dom arrivals",
+            "arrivals domestic",
+            "workload",
+            "operational pressure"
+          ],
+          "description_ar": "عدد الرحلات القادمة الداخلية (مؤشر ضغط العمل)"
         },
         {
           "original_name": "Arrivals International+Foreign",
@@ -2135,21 +2149,59 @@
         },
         {
           "original_name": "No Show",
-          "canonical_name": "no_show",
+          "canonical_name": "absent_staff_count",
           "data_type": "bigint",
-          "semantic_type": "count",
+          "semantic_type": "shortage_count",
           "is_nullable": true,
           "is_primary_key": false,
-          "is_foreign_key": false
+          "is_foreign_key": false,
+          "description_ar": "عدد الموظفين المتغيبين عن المناوبة",
+          "synonyms_ar": [
+            "نو شو",
+            "غياب",
+            "عجز",
+            "نقص",
+            "نقص الموظفين",
+            "الضغط التشغيلي",
+            "no show"
+          ],
+          "synonyms_en": [
+            "no show",
+            "absent",
+            "absence",
+            "shortage",
+            "staff shortage",
+            "operational pressure"
+          ]
         },
         {
           "original_name": "On Duty",
-          "canonical_name": "on_duty",
+          "canonical_name": "on_duty_staff",
           "data_type": "bigint",
-          "semantic_type": "count",
+          "semantic_type": "manpower_count",
           "is_nullable": true,
           "is_primary_key": false,
-          "is_foreign_key": false
+          "is_foreign_key": false,
+          "description_ar": "العدد الفعلي للموظفين الموجودين في الساحة",
+          "synonyms_ar": [
+            "قوى عاملة",
+            "على رأس العمل",
+            "الطاقة",
+            "القدرة التشغيلية",
+            "الضغط التشغيلي",
+            "العجز",
+            "الموجودين",
+            "القوة الفعلية",
+            "on duty"
+          ],
+          "synonyms_en": [
+            "on duty",
+            "staff on duty",
+            "manpower",
+            "capacity",
+            "operational pressure",
+            "shortage"
+          ]
         },
         {
           "original_name": "Path",
