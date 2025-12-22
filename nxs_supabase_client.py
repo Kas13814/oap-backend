@@ -215,6 +215,35 @@ def _filter_employee_range(
 # دوال جلب البيانات
 # ============================
 
+
+def global_search_by_id(search_id: str) -> List[Dict[str, Any]]:
+    """
+    البحث الشامل عن أي رقم (ID) في الجداول الرئيسية لضمان عدم ضياع البيانات.
+    """
+    results = []
+    # الجداول التي سيتم مسحها فوراً عند وجود رقم
+    target_tables = [
+        {"table": "employee_master_db", "col": "Employee ID"},
+        {"table": "shift_report", "col": "Title"},
+        {"table": "dep_flight_delay", "col": "Employee ID"}
+    ]
+
+    for entry in target_tables:
+        try:
+            url = f"{REST_BASE_URL}/{entry['table']}"
+            params = {entry['col']: f"eq.{search_id}", "select": "*"}
+            resp = requests.get(url, headers=COMMON_HEADERS, params=params)
+            if resp.status_code == 200 and resp.json():
+                data = resp.json()
+                # إضافة اسم الجدول للبيانات ليعرف Gemini مصدرها
+                for row in data:
+                    row["_source_table"] = entry['table']
+                results.extend(data)
+        except Exception as e:
+            logger.error(f"Error searching {entry['table']}: {e}")
+
+    return results
+
 def search_everywhere(value: str) -> Optional[List[Dict[str, Any]]]:
     """
     بحث 'ماسح' عن قيمة (غالباً رقم وظيفي) عبر عدة جداول وأعمدة محتملة.
