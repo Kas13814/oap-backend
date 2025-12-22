@@ -835,6 +835,51 @@ def nxs_brain(message: str) -> Tuple[str, Dict[str, Any]]:
         meta.update(gmeta or {})
         return answer_text, meta
 
+    # =================== Global ID Search (Patch فقط) ===================
+    # إذا كان السؤال يحتوي على رقم مكوّن من 5 خانات فأكثر، نقوم ببحث شامل في قاعدة البيانات
+    # ثم نمرر النتائج مباشرة لمحرك الصياغة بدون فلترة مسبقة.
+    potential_ids = re.findall(r'\d{5,}', message)
+    collected_data: List[Dict[str, Any]] = []
+    if potential_ids:
+        for p_id in potential_ids:
+            try:
+                data = nxs_db.global_search_by_id(str(p_id))
+                if data:
+                    collected_data.extend(data)
+            except Exception as exc:
+                logger.error(f"Global search error for ID {p_id}: {exc}")
+
+    if collected_data:
+        # تحديد لغة الرد بشكل مبسط (بدون تغيير منطق planner)
+        language = "ar" if re.search(r"[\u0600-\u06FF]", message) else "en"
+
+        strict_instruction = (
+            "تعليمات صارمة: اعتمد فقط على البيانات المرسلة. "
+            "إذا لم تجد الإجابة داخل البيانات، قل بوضوح أن البيانات غير كافية ولا تخمن."
+        )
+
+        answer_prompt = build_answer_prompt(
+            user_message=message,
+            language=language,
+            planner_notes="global-id-search",
+            data_bundle={"global_search_results": collected_data},
+            extra_system_instruction=strict_instruction,
+            operational_context=None,
+        )
+
+        answer_text = call_ai(answer_prompt, model_name=GEMINI_MODEL_SIMPLE)
+
+        meta.update(
+            {
+                "ok": True,
+                "language": language,
+                "stage": "global_search_by_id",
+                "data_summary": {"rows": len(collected_data)},
+                "engine": "NXS-URE",
+            }
+        )
+        return answer_text, meta
+
     try:
         # 1) التخطيط
         planner_info = run_planner(message)
