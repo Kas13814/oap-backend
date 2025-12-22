@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "metrics": [
     {
       "id": "INCIDENT_COUNT_PER_EMPLOYEE",
@@ -311,6 +311,41 @@
         "أيام المرضي",
         "إجمالي الإجازة المرضية"
       ]
+    },
+    {
+      "id": "OPERATIONAL_WORKLOAD_PRESSURE",
+      "name_ar": "مؤشر الضغط التشغيلي",
+      "unit": "percentage",
+      "expression_sql": "(((Departures_Domestic + \"Departures International+Foreign\") * 70) + ((\"Arrivals Domestic\" + \"Arrivals International+Foreign\") * 20)) / (NULLIF(\"On Duty\", 0) * 480) * 100",
+      "description_ar": "حساب نسبة الضغط بناءً على عدد الرحلات مقابل الدقائق المتاحة للموظفين (70 د للمغادرة، 20 د للوصول)",
+      "synonyms_ar": [
+        "الضغط",
+        "نسبة الإشغال",
+        "workload pressure"
+      ]
+    },
+    {
+      "id": "MANPOWER_SHORTAGE_RATIO",
+      "name_ar": "نسبة النقص البشري",
+      "unit": "percentage",
+      "expression_sql": "CAST(\"No Show\" AS FLOAT) / NULLIF((\"On Duty\" + \"No Show\"), 0) * 100",
+      "description_ar": "نسبة الموظفين الذين لم يحضروا مقارنة بالعدد المجدول الكلي",
+      "synonyms_ar": [
+        "نسبة العجز",
+        "نقص الموظفين"
+      ]
+    },
+    {
+      "id": "WORKLOAD_UTILIZATION_RATIO",
+      "name_ar": "نسبة إشغال القوى العاملة (الضغط)",
+      "expression_sql": "((Departures_Domestic + Departures_International) * 70 + (Arrivals_Domestic + Arrivals_International) * 80) / (On_Duty * 480)",
+      "description_ar": "يحسب هل عدد الموظفين كافٍ لتغطية حجم الرحلات في الشفت بناءً على معايير الدقائق"
+    },
+    {
+      "id": "MANPOWER_DEFICIT_IMPACT",
+      "name_ar": "تأثير العجز البشري",
+      "expression_sql": "No_Show / (On_Duty + No_Show)",
+      "description_ar": "يقيس نسبة النقص في القوة البشرية المجدولة وتأثيرها على العمليات"
     }
   ]
 }
