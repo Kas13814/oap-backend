@@ -26,11 +26,8 @@ from typing import Any, Dict, List, Tuple, Optional
 
 
 def _normalize_colname(name: str) -> str:
-    name = name.strip()
-    name = re.sub(r"[\s\-\/]+", "_", name)
-    name = re.sub(r"[^0-9A-Za-z_]+", "", name)
-    name = re.sub(r"_+", "_", name).strip("_")
-    return name.lower()
+    # إلغاء التحويل القسري لـ snake_case لضمان مطابقة جداولك التسعة
+    return name.strip()
 
 def _colname_variants(name: str) -> List[str]:
     base = name.strip()
