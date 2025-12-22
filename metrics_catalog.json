@@ -346,6 +346,18 @@
       "name_ar": "تأثير العجز البشري",
       "expression_sql": "No_Show / (On_Duty + No_Show)",
       "description_ar": "يقيس نسبة النقص في القوة البشرية المجدولة وتأثيرها على العمليات"
+    },
+    {
+      "id": "TOTAL_MANPOWER_CAPACITY",
+      "name_ar": "إجمالي القوة البشرية المجدولة",
+      "expression_sql": "\"On Duty\" + \"No Show\"",
+      "description_ar": "مجموع الموظفين الملتزمين بالحضور (الموجودين + المتغيبين)"
+    },
+    {
+      "id": "WORKLOAD_DENSITY",
+      "name_ar": "كثافة العمل التشغيلي",
+      "expression_sql": "((\"Arrivals Domestic\" + \"Departures Domestic\") * 70) / NULLIF(\"On Duty\", 0)",
+      "description_ar": "حساب مقدار الجهد لكل موظف موجود فعلياً"
     }
   ]
 }
