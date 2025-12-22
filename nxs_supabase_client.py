@@ -6,67 +6,123 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple, Callable
 
 import requests
-from dotenv import load_dotenv
 
-# ============================
-# تحميل متغيرات البيئة من ملف .env
-# ============================
-load_dotenv()
+# dotenv اختياري للتطوير المحلي فقط (Production يعتمد على Environment Variables)
+try:
+    from dotenv import load_dotenv  # type: ignore
+except Exception:  # pragma: no cover
+    load_dotenv = None  # type: ignore
+
+if load_dotenv:
+    # إذا لم يوجد ملف .env فلن يحدث شيء، وهذا آمن على السيرفر
+    load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 
-if not SUPABASE_URL:
-    # ❌ خطأ: يرجى وضع قيمة SUPABASE_URL في ملف .env
-    raise RuntimeError("❌ SUPABASE_URL غير موجود في ملف .env")
-
-if not SUPABASE_ANON_KEY:
-    # ❌ خطأ: يرجى وضع قيمة SUPABASE_ANON_KEY في ملف .env
-    raise RuntimeError("❌ SUPABASE_ANON_KEY غير موجود في ملف .env")
+# ملاحظة احترافية:
+# - لا نُسقِط السيرفر عند غياب بيانات Supabase (للاستقرار أثناء النشر)
+# - لكن نُرجّع [] من طبقة البيانات مع تحذير واضح في السجل
+SUPABASE_ENABLED = bool(SUPABASE_URL and SUPABASE_ANON_KEY)
 
 # عنوان REST الأساسي
-REST_BASE_URL = SUPABASE_URL.rstrip("/") + "/rest/v1"
+REST_BASE_URL = (SUPABASE_URL.rstrip("/") + "/rest/v1") if SUPABASE_URL else ""
 
 # الرؤوس المشتركة لكل الطلبات
-COMMON_HEADERS = {
-    "apikey": SUPABASE_ANON_KEY,
-    "Authorization": f"Bearer {SUPABASE_ANON_KEY}",
-    "Content-Type": "application/json",
-    "Accept": "application/json",
-}
-
+COMMON_HEADERS = (
+    {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": f"Bearer {SUPABASE_ANON_KEY}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    if SUPABASE_ANON_KEY
+    else {}
+)
 
 logger = logging.getLogger("tcc_supabase")
+if not SUPABASE_ENABLED:
+    logger.warning(
+        "Supabase is not configured (SUPABASE_URL/SUPABASE_ANON_KEY missing). "
+        "Database calls will return empty results."
+    )
+
 
 
 # ============================
 # دالة GET عامة
 # ============================
-def _get(table: str, params: Dict[str, Any]) -> List[Dict[str, Any]]:
+# ============================
+# دالة GET عامة (Supabase PostgREST)
+# ============================
+# ندعم تمرير params كـ dict أو قائمة tuples حتى نسمح بتكرار نفس المفتاح (مثل Date=gte.. و Date=lte..)
+ParamsType = Any  # keep lightweight (requests handles dict or list[tuple])
+
+def _as_params(params: ParamsType) -> List[Tuple[str, str]]:
+    if params is None:
+        return []
+    if isinstance(params, dict):
+        out: List[Tuple[str, str]] = []
+        for k, v in params.items():
+            if isinstance(v, (list, tuple)):
+                for vv in v:
+                    out.append((str(k), str(vv)))
+            else:
+                out.append((str(k), str(v)))
+        return out
+    # assume iterable of (k,v)
+    return [(str(k), str(v)) for (k, v) in params]
+
+def _get(table: str, params: ParamsType) -> List[Dict[str, Any]]:
     """
     تنفيذ طلب GET عام على جدول معيّن في Supabase.
     table: اسم الجدول مثل 'employee_master_db'
-    params: باراميترات PostgREST (فلترة، limit، إلخ)
+    params: باراميترات PostgREST (فلترة، limit، order، ...)
+
+    مبدأ الأداء:
+    - لا نجلب 10000 صف ثم نفلتر محلياً إلا عند الضرورة.
+    - اجعل limit صغيراً قدر الإمكان وادفع الفلاتر إلى Supabase.
     """
+    if not SUPABASE_ENABLED:
+        return []
+
     url = f"{REST_BASE_URL}/{table}"
-    
-    # تحديد limit افتراضي إذا لم يتم تحديده
-    if "limit" not in params:
-        params["limit"] = 10000
+
+    p = _as_params(params)
+
+    # limit افتراضي + حماية من القيم الضخمة
+    has_limit = any(k == "limit" for k, _ in p)
+    if not has_limit:
+        p.append(("limit", "1000"))
+    else:
+        # cap
+        new_p: List[Tuple[str, str]] = []
+        for k, v in p:
+            if k == "limit":
+                try:
+                    n = int(str(v))
+                    if n > 5000:
+                        v = "5000"
+                except Exception:
+                    pass
+            new_p.append((k, v))
+        p = new_p
 
     try:
-        resp = requests.get(url, headers=COMMON_HEADERS, params=params, timeout=20)
-        resp.raise_for_status() # رفع استثناء في حال وجود أخطاء 4xx أو 5xx
+        resp = requests.get(url, headers=COMMON_HEADERS, params=p, timeout=20)
+        resp.raise_for_status()  # 4xx/5xx
     except requests.exceptions.RequestException as e:
         logger.warning("Supabase GET request failed for table %s: %s", table, e)
         return []
 
-    data = resp.json()
-    if isinstance(data, dict) and 'message' in data and data['message'] == 'Not Found':
-        # حالة خطأ من Supabase
+    try:
+        data = resp.json()
+    except Exception:
+        return []
+
+    if isinstance(data, dict) and data.get("message") == "Not Found":
         return []
     if isinstance(data, dict):
-        # في حال تم جلب صف واحد
         return [data]
     return data
 
@@ -192,13 +248,20 @@ def get_employee_delays(
     limit: int = 200,
 ) -> List[Dict[str, Any]]:
     """جلب تأخيرات الرحلات لموظف معيّن من dep_flight_delay."""
-    rows = list_dep_flight_delays(limit=10000)
-    s, e = _normalize_date_range(start_date, end_date)
-    filtered = _filter_employee_range(
-        rows, employee_id, ["Date"], s, e
-    )
-    return filtered[:limit]
+    emp = (employee_id or "").strip()
+    if not emp:
+        return []
 
+    s, e = _normalize_date_range(start_date, end_date)
+    params: List[Tuple[str, str]] = [
+        ("select", "*"),
+        ("limit", str(limit)),
+        ("order", "Date.asc"),
+        ("Employee ID", f"eq.{emp}"),
+        ("Date", f"gte.{s}"),
+        ("Date", f"lte.{e}"),
+    ]
+    return _get("dep_flight_delay", params)
 
 def list_employee_absence(
     limit: int = 1000
@@ -216,13 +279,19 @@ def get_employee_absence(
     limit: int = 200,
 ) -> List[Dict[str, Any]]:
     """جلب الغياب لموظف معيّن خلال فترة."""
-    rows = list_employee_absence(limit=10000)
+    emp = (employee_id or "").strip()
+    if not emp:
+        return []
     s, e = _normalize_date_range(start_date, end_date)
-    filtered = _filter_employee_range(
-        rows, employee_id, ["Date"], s, e
-    )
-    return filtered[:limit]
-
+    params: List[Tuple[str, str]] = [
+        ("select", "*"),
+        ("limit", str(limit)),
+        ("order", "Date.asc"),
+        ("Employee ID", f"eq.{emp}"),
+        ("Date", f"gte.{s}"),
+        ("Date", f"lte.{e}"),
+    ]
+    return _get("employee_absence", params)
 
 def list_employee_delay_log(
     limit: int = 1000
@@ -240,13 +309,19 @@ def get_employee_delay_log(
     limit: int = 200,
 ) -> List[Dict[str, Any]]:
     """جلب سجلات تأخير الحضور لموظف معيّن خلال فترة."""
-    rows = list_employee_delay_log(limit=10000)
+    emp = (employee_id or "").strip()
+    if not emp:
+        return []
     s, e = _normalize_date_range(start_date, end_date)
-    filtered = _filter_employee_range(
-        rows, employee_id, ["Date"], s, e
-    )
-    return filtered[:limit]
-
+    params: List[Tuple[str, str]] = [
+        ("select", "*"),
+        ("limit", str(limit)),
+        ("order", "Date.asc"),
+        ("Employee ID", f"eq.{emp}"),
+        ("Date", f"gte.{s}"),
+        ("Date", f"lte.{e}"),
+    ]
+    return _get("employee_delay", params)
 
 def list_employee_overtime(
     limit: int = 1000
@@ -264,13 +339,20 @@ def get_employee_overtime(
     limit: int = 200,
 ) -> List[Dict[str, Any]]:
     """جلب سجلات العمل الإضافي لموظف معيّن خلال فترة."""
-    rows = list_employee_overtime(limit=10000)
+    emp = (employee_id or "").strip()
+    if not emp:
+        return []
     s, e = _normalize_date_range(start_date, end_date)
-    filtered = _filter_employee_range(
-        rows, employee_id, ["Assignment Date"], s, e
-    )
-    return filtered[:limit]
-
+    # ملاحظة: جدول employee_overtime يعتمد غالباً على "Assignment Date" كحقل تاريخ
+    params: List[Tuple[str, str]] = [
+        ("select", "*"),
+        ("limit", str(limit)),
+        ("order", '"Assignment Date".asc'),
+        ("Employee ID", f"eq.{emp}"),
+        ("Assignment Date", f"gte.{s}"),
+        ("Assignment Date", f"lte.{e}"),
+    ]
+    return _get("employee_overtime", params)
 
 def list_employee_sick_leave(
     limit: int = 1000
@@ -288,13 +370,19 @@ def get_employee_sick_leave(
     limit: int = 200,
 ) -> List[Dict[str, Any]]:
     """جلب سجلات الإجازات المرضية لموظف معيّن خلال فترة."""
-    rows = list_employee_sick_leave(limit=10000)
+    emp = (employee_id or "").strip()
+    if not emp:
+        return []
     s, e = _normalize_date_range(start_date, end_date)
-    filtered = _filter_employee_range(
-        rows, employee_id, ["Date"], s, e
-    )
-    return filtered[:limit]
-
+    params: List[Tuple[str, str]] = [
+        ("select", "*"),
+        ("limit", str(limit)),
+        ("order", "Date.asc"),
+        ("Employee ID", f"eq.{emp}"),
+        ("Date", f"gte.{s}"),
+        ("Date", f"lte.{e}"),
+    ]
+    return _get("employee_sick_leave", params)
 
 def list_operational_events(
     limit: int = 1000
@@ -312,13 +400,19 @@ def get_employee_operational_events(
     limit: int = 200,
 ) -> List[Dict[str, Any]]:
     """جلب الأحداث التشغيلية لموظف معيّن خلال فترة."""
-    rows = list_operational_events(limit=10000)
+    emp = (employee_id or "").strip()
+    if not emp:
+        return []
     s, e = _normalize_date_range(start_date, end_date)
-    filtered = _filter_employee_range(
-        rows, employee_id, ["Event Date"], s, e
-    )
-    return filtered[:limit]
-
+    params: List[Tuple[str, str]] = [
+        ("select", "*"),
+        ("limit", str(limit)),
+        ("order", '"Event Date".asc'),
+        ("Employee ID", f"eq.{emp}"),
+        ("Event Date", f"gte.{s}"),
+        ("Event Date", f"lte.{e}"),
+    ]
+    return _get("operational_event", params)
 
 def get_employee_count_by_department(department: str) -> int:
     """الحصول على عدد الموظفين في قسم معيّن (من employee_master_db)."""
@@ -411,17 +505,41 @@ def get_dep_flight_events_by_flight_number(
     if not fn:
         return []
 
-    rows = list_dep_flight_delays(limit=10000)
-    result: List[Dict[str, Any]] = []
-    for r in rows:
-        arr = str(r.get("Arrival Flight Number") or "").strip().upper()
-        dep = str(r.get("Departure Flight Number") or "").strip().upper()
-        if fn == arr or fn == dep:
-            result.append(r)
-            if len(result) >= limit:
-                break
-    return result
+    # نجلب من السيرفر مرّتين (Arrival/Departure) لتفادي تعقيد OR مع أعمدة فيها مسافات
+    params_dep: List[Tuple[str, str]] = [
+        ("select", "*"),
+        ("limit", str(limit)),
+        ("order", "Date.desc"),
+        ("Departure Flight Number", f"eq.{fn}"),
+    ]
+    params_arr: List[Tuple[str, str]] = [
+        ("select", "*"),
+        ("limit", str(limit)),
+        ("order", "Date.desc"),
+        ("Arrival Flight Number", f"eq.{fn}"),
+    ]
 
+    dep = _get("dep_flight_delay", params_dep)
+    arr = _get("dep_flight_delay", params_arr)
+
+    # دمج بدون تكرار
+    seen = set()
+    out: List[Dict[str, Any]] = []
+    for r in dep + arr:
+        key = (
+            str(r.get("Date") or ""),
+            str(r.get("Departure Flight Number") or ""),
+            str(r.get("Arrival Flight Number") or ""),
+            str(r.get("Airlines") or ""),
+            str(r.get("Gate") or r.get("GATE") or ""),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(r)
+        if len(out) >= limit:
+            break
+    return out
 
 def get_sgs_flight_events_by_flight_number(
     flight_number: str,
@@ -431,18 +549,13 @@ def get_sgs_flight_events_by_flight_number(
     fn = (flight_number or "").strip().upper()
     if not fn:
         return []
-
-    rows = list_all_flight_delays(limit=10000)
-    result: List[Dict[str, Any]] = []
-    for r in rows:
-        num = str(r.get("Flight Number") or "").strip().upper()
-        if fn == num:
-            result.append(r)
-            if len(result) >= limit:
-                break
-    return result
-
-
+    params: List[Tuple[str, str]] = [
+        ("select", "*"),
+        ("limit", str(limit)),
+        ("order", "Date.desc"),
+        ("Flight Number", f"eq.{fn}"),
+    ]
+    return _get("sgs_flight_delay", params)
 
 def normalize_flight_number(raw: Optional[str]) -> Tuple[str, str]:
     """
@@ -514,22 +627,16 @@ def get_flight_delays_by_airline(
     airline_norm = _normalize_airline_name(airline)
     if not airline_norm:
         return []
-
-    rows = list_all_flight_delays(limit=10000)
     s, e = _normalize_date_range(start_date, end_date)
-
-    result: List[Dict[str, Any]] = []
-    for r in rows:
-        a_norm = _normalize_airline_name(r.get("Airlines"))
-        if airline_norm and a_norm and airline_norm != a_norm:
-            continue
-        if not _in_date_range(r, ["Date"], s, e):
-            continue
-        result.append(r)
-        if len(result) >= limit:
-            break
-    return result
-
+    params: List[Tuple[str, str]] = [
+        ("select", "*"),
+        ("limit", str(limit)),
+        ("order", "Date.desc"),
+        ("Airlines", f"ilike.*{airline_norm}*"),
+        ("Date", f"gte.{s}"),
+        ("Date", f"lte.{e}"),
+    ]
+    return _get("sgs_flight_delay", params)
 
 def get_dep_delays_by_airline(
     airline: str,
@@ -541,22 +648,16 @@ def get_dep_delays_by_airline(
     airline_norm = _normalize_airline_name(airline)
     if not airline_norm:
         return []
-
-    rows = list_dep_flight_delays(limit=10000)
     s, e = _normalize_date_range(start_date, end_date)
-
-    result: List[Dict[str, Any]] = []
-    for r in rows:
-        a_norm = _normalize_airline_name(r.get("Airlines"))
-        if airline_norm and a_norm and airline_norm != a_norm:
-            continue
-        if not _in_date_range(r, ["Date"], s, e):
-            continue
-        result.append(r)
-        if len(result) >= limit:
-            break
-    return result
-
+    params: List[Tuple[str, str]] = [
+        ("select", "*"),
+        ("limit", str(limit)),
+        ("order", "Date.desc"),
+        ("Airlines", f"ilike.*{airline_norm}*"),
+        ("Date", f"gte.{s}"),
+        ("Date", f"lte.{e}"),
+    ]
+    return _get("dep_flight_delay", params)
 
 def get_dep_delays_by_department(
     department: str,
@@ -565,25 +666,19 @@ def get_dep_delays_by_department(
     limit: int = 200,
 ) -> List[Dict[str, Any]]:
     """جلب سجلات التأخيرات المسجَّلة على قسم معيّن من dep_flight_delay."""
-    dept_norm = (department or "").strip().lower()
+    dept_norm = (department or "").strip()
     if not dept_norm:
         return []
-
-    rows = list_dep_flight_delays(limit=10000)
     s, e = _normalize_date_range(start_date, end_date)
-
-    result: List[Dict[str, Any]] = []
-    for r in rows:
-        d = str(r.get("Department") or "").strip().lower()
-        if dept_norm not in d:
-            continue
-        if not _in_date_range(r, ["Date"], s, e):
-            continue
-        result.append(r)
-        if len(result) >= limit:
-            break
-    return result
-
+    params: List[Tuple[str, str]] = [
+        ("select", "*"),
+        ("limit", str(limit)),
+        ("order", "Date.desc"),
+        ("Department", f"ilike.*{dept_norm}*"),
+        ("Date", f"gte.{s}"),
+        ("Date", f"lte.{e}"),
+    ]
+    return _get("dep_flight_delay", params)
 
 def get_flight_delays_by_delay_code(
     delay_code: str,
@@ -596,30 +691,21 @@ def get_flight_delays_by_delay_code(
     code_norm = (delay_code or "").strip().upper()
     if not code_norm:
         return []
-
     airline_norm = _normalize_airline_name(airline) if airline else ""
-    rows = list_all_flight_delays(limit=10000)
     s, e = _normalize_date_range(start_date, end_date)
 
-    result: List[Dict[str, Any]] = []
-    for r in rows:
-        c = str(r.get("Delay Code") or "").strip().upper()
-        if code_norm not in c:
-            continue
+    params: List[Tuple[str, str]] = [
+        ("select", "*"),
+        ("limit", str(limit)),
+        ("order", "Date.desc"),
+        ("Delay Code", f"eq.{code_norm}"),
+        ("Date", f"gte.{s}"),
+        ("Date", f"lte.{e}"),
+    ]
+    if airline_norm:
+        params.append(("Airlines", f"ilike.*{airline_norm}*"))
 
-        if airline_norm:
-            a_norm = _normalize_airline_name(r.get("Airlines"))
-            if airline_norm and a_norm and airline_norm != a_norm:
-                continue
-
-        if not _in_date_range(r, ["Date"], s, e):
-            continue
-
-        result.append(r)
-        if len(result) >= limit:
-            break
-    return result
-
+    return _get("sgs_flight_delay", params)
 
 def get_dep_delays_by_delay_code(
     delay_code: str,
@@ -632,35 +718,22 @@ def get_dep_delays_by_delay_code(
     code_norm = (delay_code or "").strip().upper()
     if not code_norm:
         return []
-
     airline_norm = _normalize_airline_name(airline) if airline else ""
-    rows = list_dep_flight_delays(limit=10000)
     s, e = _normalize_date_range(start_date, end_date)
 
-    result: List[Dict[str, Any]] = []
-    for r in rows:
-        viol = str(r.get("Departure Violations") or "").strip().upper()
-        if code_norm not in viol:
-            continue
+    params: List[Tuple[str, str]] = [
+        ("select", "*"),
+        ("limit", str(limit)),
+        ("order", "Date.desc"),
+        # في dep_flight_delay الكود غالباً داخل Departure Violations كنص، لذلك نستخدم ilike
+        ("Departure Violations", f"ilike.*{code_norm}*"),
+        ("Date", f"gte.{s}"),
+        ("Date", f"lte.{e}"),
+    ]
+    if airline_norm:
+        params.append(("Airlines", f"ilike.*{airline_norm}*"))
 
-        if airline_norm:
-            a_norm = _normalize_airline_name(r.get("Airlines"))
-            if airline_norm and a_norm and airline_norm != a_norm:
-                continue
-
-        if not _in_date_range(r, ["Date"], s, e):
-            continue
-
-        result.append(r)
-        if len(result) >= limit:
-            break
-    return result
-
-# ============================================
-# محاكاة تحليل العمل الإضافي وربطه بالتأخيرات (Root Cause Sandbox)
-# ============================================
-
-from typing import List, Dict, Any, Optional  # استيراد للاستخدام في الدوال أدناه (مكرر لا يسبب مشكلة)
+    return _get("dep_flight_delay", params)
 
 def list_employee_overtime_simulated(department: Optional[str] = 'TCC', limit: int = 1000) -> List[Dict[str, Any]]:
     """
