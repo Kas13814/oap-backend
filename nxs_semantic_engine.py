@@ -596,24 +596,174 @@ def extract_basic_filters_from_query(query: str) -> Dict[str, Any]:
 
     return filters
 
+# ============== Model Routing (Fast vs Pro) ==============
+
+def _count_numbers(text: str) -> int:
+    if not text:
+        return 0
+    return len(re.findall(r"\b\d+\b", text))
+
+
+def estimate_complexity(
+    query: str,
+    interpretation: Optional[Dict[str, Any]] = None,
+    plan: Optional[Dict[str, Any]] = None,
+    detected_filters: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    تقدير "تعقيد" السؤال بسرعة (بدون LLM) بهدف اختيار الموديل المناسب:
+    - simple  -> gemini-2.5-flash
+    - complex -> gemini-2.5-pro
+
+    المخرجات:
+      {
+        "tier": "simple" | "complex",
+        "score": int (0..100),
+        "reasons": [..]
+      }
+
+    ملاحظة:
+    - هذه طبقة مساعدة فقط (Helper). القرار النهائي يمكن أن يتم في nxs_brain.py.
+    """
+    q_norm = normalize_text(query)
+    toks = tokenize(q_norm)
+    tok_len = len(toks)
+
+    # كلمات تشير غالباً إلى تحليل عميق
+    complex_markers_ar = {
+        "حلل","تحليل","قارن","مقارنة","اتجاه","توجه","توقع","تنبؤ","تفسير","فسر","اشرح",
+        "سبب","لماذا","جذر","جذري","استنتاج","استخلص","نمط","انماط","احصائية","إحصائية",
+        "متوسط","نسبة","انحراف","معيار","ارتباط","تنبؤات","توصية","سيناريو","what-if"
+    }
+    complex_markers_en = {
+        "analyze","analysis","compare","comparison","trend","forecast","predict","prediction",
+        "explain","reason","root","cause","insight","pattern","correlation","variance",
+        "recommend","scenario","what if","kpi","benchmark"
+    }
+
+    reasons = []
+    score = 0
+
+    # طول السؤال
+    if tok_len >= 18:
+        score += 20
+        reasons.append("سؤال طويل (عدد كلمات كبير)")
+    elif tok_len >= 10:
+        score += 10
+        reasons.append("سؤال متوسط الطول")
+
+    # وجود كلمات تحليل/مقارنة
+    joined = " ".join(toks)
+    hit_complex = 0
+    for w in complex_markers_ar:
+        if w in joined:
+            hit_complex += 1
+    for w in complex_markers_en:
+        if w in joined:
+            hit_complex += 1
+
+    if hit_complex >= 2:
+        score += 30
+        reasons.append("يحتوي كلمات تحليل/مقارنة/تفسير")
+    elif hit_complex == 1:
+        score += 15
+        reasons.append("يحتوي مؤشر واحد للتحليل")
+
+    # أرقام كثيرة -> غالباً تحليل
+    n_numbers = _count_numbers(query)
+    if n_numbers >= 3:
+        score += 15
+        reasons.append("يحتوي عدة أرقام/قيم")
+    elif n_numbers == 2:
+        score += 8
+        reasons.append("يحتوي رقمين")
+
+    # عدد الفلاتر المكتشفة
+    if detected_filters:
+        df = {k: v for k, v in detected_filters.items() if v not in (None, "", [])}
+        if len(df) >= 2:
+            score += 10
+            reasons.append("اكتشاف أكثر من فلتر (موظف/رحلة/كود...)")
+        elif len(df) == 1:
+            score += 4
+            reasons.append("اكتشاف فلتر واحد")
+
+    # تعقيد الخطة (إن وجدت)
+    if plan:
+        gb = plan.get("group_by") or []
+        metric = plan.get("metric")
+        if metric and gb:
+            score += 15
+            reasons.append("الخطة تتضمن Metric + Group By")
+        elif metric:
+            score += 8
+            reasons.append("الخطة تتضمن Metric")
+        if plan.get("limit", 0) and plan.get("limit", 0) >= 25:
+            score += 5
+            reasons.append("طلب عدد نتائج كبير")
+
+    # ضمان الحدود
+    score = max(0, min(100, score))
+
+    tier = "complex" if score >= 55 else "simple"
+    if not reasons:
+        reasons.append("سؤال مباشر/بسيط")
+
+    return {"tier": tier, "score": score, "reasons": reasons}
+
+
+def recommend_gemini_model(
+    complexity_tier: str,
+    env: Optional[Dict[str, str]] = None,
+) -> Dict[str, str]:
+    """
+    يحدد اسم الموديل المقترح بناءً على التعقيد.
+    - يدعم override عبر Environment Variables (اختياري):
+        GEMINI_MODEL_SIMPLE
+        GEMINI_MODEL_COMPLEX
+    """
+    import os
+    env = env or os.environ
+
+    simple_model = env.get("GEMINI_MODEL_SIMPLE", "gemini-2.5-flash")
+    complex_model = env.get("GEMINI_MODEL_COMPLEX", "gemini-2.5-pro")
+
+    if complexity_tier == "complex":
+        return {"tier": "complex", "model": complex_model}
+    return {"tier": "simple", "model": simple_model}
+
 
 def interpret_with_filters(engine: "NXSSemanticEngine", query: str) -> Dict[str, Any]:
     """
     واجهة مريحة تجمع بين:
     - التفسير الدلالي (interpret).
     - واستخراج فلاتر أساسية من النص مباشرةً.
+    - تقدير تعقيد السؤال (Model Routing Hint) لاختيار (Flash/Pro).
 
     تعيد:
     {
       "interpretation": {...},   # نفس هيكل InterpretationResult.to_dict()
       "plan": {...},             # ناتج build_query_plan
-      "detected_filters": {...}  # ناتج extract_basic_filters_from_query
+      "detected_filters": {...}, # ناتج extract_basic_filters_from_query
+      "complexity_hint": {...},  # tier/score/reasons
+      "model_hint": {...},       # tier/model
     }
     """
     interp_and_plan = build_query_plan(engine, query)
     detected_filters = extract_basic_filters_from_query(query)
+
+    complexity_hint = estimate_complexity(
+        query=query,
+        interpretation=interp_and_plan.get("interpretation"),
+        plan=interp_and_plan.get("plan"),
+        detected_filters=detected_filters,
+    )
+    model_hint = recommend_gemini_model(complexity_hint["tier"])
+
     return {
         "interpretation": interp_and_plan["interpretation"],
         "plan": interp_and_plan["plan"],
         "detected_filters": detected_filters,
+        "complexity_hint": complexity_hint,
+        "model_hint": model_hint,
     }
