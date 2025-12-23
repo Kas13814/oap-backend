@@ -8,3 +8,5 @@ python-dotenv
 requests
 supabase
 uvicorn[standard]
+plotly
+matplotlib
