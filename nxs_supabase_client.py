@@ -1103,4 +1103,15 @@ def find_employee_fast(emp_id: str):
     params = {"Employee ID": f"eq.{emp_id}", "select": "*"}
     response = requests.get(url, headers=COMMON_HEADERS, params=params)
     return response.json() if response.status_code == 200 else []
-
+def force_fetch_employee_by_id(emp_id: str) -> List[Dict[str, Any]]:
+    """البحث المباشر في جدول الموظفين باستخدام الاسم الأصلي للعمود (Employee ID)"""
+    try:
+        # لاحظ استخدام اسم العمود كما هو في قاعدة بياناتك "Employee ID"
+        url = f"{REST_BASE_URL}/employee_master_db"
+        params = {"Employee ID": f"eq.{emp_id}", "select": "*"}
+        resp = requests.get(url, headers=COMMON_HEADERS, params=params)
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception as e:
+        logger.error(f"Force fetch failed: {e}")
+    return []
