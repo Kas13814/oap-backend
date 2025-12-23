@@ -67,6 +67,8 @@ import google.generativeai as genai
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from nxs_visual_engine import build_chart
+
 import time
 import re
 
@@ -176,6 +178,17 @@ app.add_middleware(
 class ChatRequest(BaseModel):
     message: str
 
+
+
+
+class VizRequest(BaseModel):
+    rows: List[Dict[str, Any]] = []
+    chart_type: str = "bar"   # bar | line | pie | table
+    x: Optional[str] = None
+    y: Optional[str] = None
+    names: Optional[str] = None
+    values: Optional[str] = None
+    title: Optional[str] = None
 
 # =========================
 #  6. الذاكرة (Chat History)
@@ -672,3 +685,25 @@ if __name__ == "__main__":  # pragma: no cover
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
+@app.post("/viz")
+def viz(req: VizRequest) -> Dict[str, Any]:
+    out = build_chart(
+        rows=req.rows,
+        chart_type=req.chart_type,
+        x=req.x,
+        y=req.y,
+        names=req.names,
+        values=req.values,
+        title=req.title,
+    )
+    return {
+        "ok": out.ok,
+        "figure": out.figure,          # Plotly JSON (للواجهة)
+        "png_base64": out.png_base64,  # fallback image
+        "table_html": out.table_html,  # جدول HTML
+        "meta": out.meta,
+        "error": out.error,
+    }
+
+
