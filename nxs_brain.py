@@ -819,6 +819,26 @@ def nxs_brain(message: str) -> Tuple[str, Dict[str, Any]]:
     3) بناء برومبت الإجابة النهائية واستدعاء محرك الذكاء.
     4) إرجاع النص + ميتاداتا تقنية (meta) للاستخدام في الواجهة/التشخيص.
     """
+    # =================== Force Rule (NEW): Direct Employee Master Lookup via force_fetch_employee_by_id ===================
+    # الهدف: بمجرد اكتشاف رقم وظيفي داخل سؤال المستخدم، نجلب البيانات فوراً من قاعدة البيانات بدون المرور بتحليل النوايا.
+    emp_id_match = re.search(r'\d{5,8}', message)
+
+    if emp_id_match:
+        found_id = emp_id_match.group(0)
+        try:
+            db_data = nxs_db.force_fetch_employee_by_id(found_id)
+        except Exception as exc:
+            db_data = []
+            logger.error(f"force_fetch_employee_by_id error for ID {found_id}: {exc}")
+
+        if db_data:
+            prompt = (
+                "أنت خبير مطارات. هذه بيانات موظف حقيقية من النظام:\n"
+                f"{json.dumps(db_data, ensure_ascii=False)}\n\n"
+                f"أجب على سؤال المستخدم: {message}"
+            )
+            final_reply = call_ai(prompt)
+            return final_reply, {"source": "direct_db_lookup", "emp_id": found_id}
     message = (message or "").strip()
     if not message:
         return (
